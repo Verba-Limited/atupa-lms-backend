@@ -9,6 +9,10 @@ Single-port modular monolith for the ATUPA Learning Management System (Yoruba, I
 - **SOLID patterns**: repository interfaces, payment/notification ports, role guards, focused services
 - **MongoDB** for extensible language/course data (new languages are data, not code)
 
+## Repository
+
+GitHub: [kanmitcode/atupa-lms-backend](https://github.com/kanmitcode/atupa-lms-backend)
+
 ## Quick start
 
 ```bash

@@ -6,9 +6,25 @@
 2. **MongoDB URI** — Render does not host MongoDB. Use [MongoDB Atlas](https://www.mongodb.com/atlas) (free M0 cluster) and set `MONGODB_URI` in Render
 3. **Render account** — [dashboard.render.com](https://dashboard.render.com)
 
+## GitHub repository
+
+Canonical repo: **`kanmitcode/atupa-lms-backend`**  
+Do not deploy from personal MTN GitHub accounts unless the repo is under `madapi-mtn-*`.
+
+After creating the repo under `kanmitcode`, push from this folder:
+
+```bash
+git remote set-url origin https://github.com/kanmitcode/atupa-lms-backend.git
+git push -u origin main
+```
+
+Blueprint deploy link (after the repo exists):
+
+https://render.com/deploy?repo=https://github.com/kanmitcode/atupa-lms-backend
+
 ## Option A — Blueprint (recommended)
 
-1. Push this directory to GitHub (repo root can be `backend/` or monorepo with Root Directory set to `atupa-lms/backend`).
+1. Push this directory to **`kanmitcode/atupa-lms-backend`** on GitHub.
 2. In Render: **New → Blueprint** → connect the repo.
 3. Render reads `render.yaml` in the repo root (or the service root directory you choose).
 4. When prompted, set secrets:
