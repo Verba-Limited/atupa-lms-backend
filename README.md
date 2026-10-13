@@ -11,7 +11,7 @@ Single-port modular monolith for the ATUPA Learning Management System (Yoruba, I
 
 ## Repository
 
-GitHub: [kanmitcode/atupa-lms-backend](https://github.com/kanmitcode/atupa-lms-backend)
+GitHub: [kanmitcode/atupa-lms-api](https://github.com/kanmitcode/atupa-lms-api)
 
 ## Quick start
 
