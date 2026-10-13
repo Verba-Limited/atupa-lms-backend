@@ -8,22 +8,23 @@
 
 ## GitHub repository
 
-Canonical repo: **`Verba-Limited/atupa-lms-api`**
+Canonical repo: **`Verba-Limited/atupa-lms-backend`**
 
-Push from this folder:
+Push from this folder (use a GitHub account with write access to Verba-Limited):
 
 ```bash
-git remote set-url origin https://github.com/Verba-Limited/atupa-lms-api.git
+git remote set-url origin https://github.com/Verba-Limited/atupa-lms-backend.git
+gh auth login
 git push -u origin main
 ```
 
 Blueprint deploy link:
 
-https://render.com/deploy?repo=https://github.com/Verba-Limited/atupa-lms-api
+https://render.com/deploy?repo=https://github.com/Verba-Limited/atupa-lms-backend
 
 ## Option A — Blueprint (recommended)
 
-1. Push this directory to **`Verba-Limited/atupa-lms-api`** on GitHub.
+1. Push this directory to **`Verba-Limited/atupa-lms-backend`** on GitHub.
 2. In Render: **New → Blueprint** → connect the repo.
 3. Render reads `render.yaml` in the repo root (or the service root directory you choose).
 4. When prompted, set secrets:
