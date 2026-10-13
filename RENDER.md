@@ -10,11 +10,12 @@
 
 Canonical repo: **`Verba-Limited/atupa-lms-backend`**
 
-Push from this folder (use a GitHub account with write access to Verba-Limited):
+Push from this folder using a **Verba-Limited** org account (see `GIT.md`). Do not use MTN enterprise GitHub accounts.
 
 ```bash
 git remote set-url origin https://github.com/Verba-Limited/atupa-lms-backend.git
-gh auth login
+gh auth login    # e.g. kanmitcode
+gh auth setup-git
 git push -u origin main
 ```
 
