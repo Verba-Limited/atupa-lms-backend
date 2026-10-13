@@ -9,7 +9,7 @@ services:
     region: oregon
     branch: main
     autoDeploy: true
-    buildCommand: npm ci && npm run build
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: npm run start:prod
     healthCheckPath: /api/v1/health
     envVars:
