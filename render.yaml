@@ -20,7 +20,7 @@ services:
       - key: JWT_REFRESH_SECRET
         generateValue: true
       - key: JWT_EXPIRES_IN
-        value: 1d
+        value: 15m
       - key: JWT_REFRESH_EXPIRES_IN
         value: 7d
       - key: MONGODB_URI
@@ -33,3 +33,23 @@ services:
         sync: false
       - key: PAYSTACK_PUBLIC_KEY
         sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: SUPER_ADMIN_EMAIL
+        sync: false
+      - key: SUPER_ADMIN_PASSWORD
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: CLOUDINARY_FOLDER
+        value: atupa-lms
+      - key: SEED_DEMO_CONTENT
+        value: "true"

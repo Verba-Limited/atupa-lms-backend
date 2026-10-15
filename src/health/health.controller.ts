@@ -1,10 +1,14 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { ok } from '../common/utils/api-response';
+import { SkipThrottle } from '@nestjs/throttler';
+import { Public } from '../shared/presentation/decorators/public.decorator';
+import { ok } from '../shared/presentation/http/api-response';
 
 @ApiTags('Health')
 @Controller('health')
 export class HealthController {
+  @Public()
+  @SkipThrottle()
   @Get()
   check() {
     return ok({

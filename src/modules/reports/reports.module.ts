@@ -1,23 +1,47 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
-import { Course, CourseSchema } from '../catalog/schemas/course.schema';
+import { AssignmentsModule } from '../assignments';
+import { CatalogModule } from '../catalog';
+import { CertificatesModule } from '../certificates';
+import { ClassesModule } from '../classes';
+import { GamecardModule } from '../gamecard';
+import { IdentityModule } from '../identity';
+import { LearningModule } from '../learning';
+import { ParentsModule } from '../parents';
+import { ProgressModule } from '../progress';
+import { SchoolsModule } from '../schools';
+import { SubscriptionsModule } from '../subscriptions';
+import { DashboardsService } from './application/dashboards.service';
+import { LeaderboardsService } from './application/leaderboards.service';
+import { LearnerAccessService } from './application/learner-access.service';
+import { LearnerInsightsService } from './application/learner-insights.service';
+import { ReportsService } from './application/reports.service';
 import {
-  LearnerProgress,
-  LearnerProgressSchema,
-} from '../progress/schemas/learner-progress.schema';
-import { User, UserSchema } from '../users/schemas/user.schema';
-import { ReportsController } from './reports.controller';
-import { ReportsService } from './reports.service';
+  DashboardsController,
+  ReportsController,
+} from './presentation/http/reports.controller';
 
+/** Read-side composition over the other modules' public facades. */
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: LearnerProgress.name, schema: LearnerProgressSchema },
-      { name: User.name, schema: UserSchema },
-      { name: Course.name, schema: CourseSchema },
-    ]),
+    IdentityModule,
+    CatalogModule,
+    ProgressModule,
+    CertificatesModule,
+    ClassesModule,
+    AssignmentsModule,
+    ParentsModule,
+    SchoolsModule,
+    GamecardModule,
+    SubscriptionsModule,
+    LearningModule,
   ],
-  controllers: [ReportsController],
-  providers: [ReportsService],
+  controllers: [DashboardsController, ReportsController],
+  providers: [
+    DashboardsService,
+    ReportsService,
+    LeaderboardsService,
+    LearnerAccessService,
+    LearnerInsightsService,
+  ],
 })
 export class ReportsModule {}

@@ -1,29 +1,29 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
-import request from 'supertest';
-import { App } from 'supertest/types';
-import { AppModule } from './../src/app.module';
+import { createTestApp, TestContext } from './support/test-app';
 
-describe('AppController (e2e)', () => {
-  let app: INestApplication<App>;
+describe('App boot (e2e)', () => {
+  let ctx: TestContext;
 
-  beforeEach(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
+  beforeAll(async () => {
+    ctx = await createTestApp();
+  }, 120_000);
 
-    app = moduleFixture.createNestApplication();
-    await app.init();
+  afterAll(() => ctx?.close());
+
+  it('serves health without auth', async () => {
+    const res = await ctx.http().get('/api/v1/health').expect(200);
+    expect(res.body.data.status).toBe('ok');
   });
 
-  it('/ (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/')
-      .expect(200)
-      .expect('Hello World!');
+  it('seeds Yoruba, Igbo and Hausa', async () => {
+    const res = await ctx.http().get('/api/v1/languages').expect(200);
+    expect(res.body.data.map((l: { code: string }) => l.code)).toEqual([
+      'yoruba',
+      'igbo',
+      'hausa',
+    ]);
   });
 
-  afterEach(async () => {
-    await app.close();
+  it('requires a token by default (secure by default)', async () => {
+    await ctx.http().get('/api/v1/users/me').expect(401);
   });
 });
