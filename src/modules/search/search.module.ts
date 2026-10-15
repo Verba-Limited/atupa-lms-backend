@@ -1,19 +1,12 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
-import { Course, CourseSchema } from '../catalog/schemas/course.schema';
-import { Lesson, LessonSchema } from '../catalog/schemas/lesson.schema';
-import { SearchController } from './search.controller';
-import { SearchService } from './search.service';
+import { CatalogModule } from '../catalog';
+import { LibraryModule } from '../library';
+import { SearchService } from './application/search.service';
+import { SearchController } from './presentation/http/search.controller';
 
 @Module({
-  imports: [
-    MongooseModule.forFeature([
-      { name: Course.name, schema: CourseSchema },
-      { name: Lesson.name, schema: LessonSchema },
-    ]),
-  ],
+  imports: [CatalogModule, LibraryModule],
   controllers: [SearchController],
   providers: [SearchService],
-  exports: [SearchService],
 })
 export class SearchModule {}

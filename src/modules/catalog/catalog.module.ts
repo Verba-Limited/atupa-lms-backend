@@ -1,30 +1,66 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { CatalogController } from './catalog.controller';
-import { CatalogService } from './catalog.service';
-import { Activity, ActivitySchema } from './schemas/activity.schema';
-import { Course, CourseSchema } from './schemas/course.schema';
-import { Language, LanguageSchema } from './schemas/language.schema';
+import { CatalogQueryService } from './application/catalog-query.service';
+import { CourseAuthoringService } from './application/course-authoring.service';
+import { LanguagesService } from './application/languages.service';
 import {
-  LearningModule,
-  LearningModuleSchema,
-} from './schemas/learning-module.schema';
-import { Lesson, LessonSchema } from './schemas/lesson.schema';
-import { Quiz, QuizSchema } from './schemas/quiz.schema';
+  ACTIVITY_REPOSITORY,
+  COURSE_REPOSITORY,
+  LANGUAGE_REPOSITORY,
+  LESSON_REPOSITORY,
+  MODULE_REPOSITORY,
+  QUIZ_REPOSITORY,
+} from './application/ports/catalog.repositories.port';
+import { CatalogMigrations } from './infrastructure/persistence/catalog.migrations';
+import {
+  ActivityMongoRepository,
+  CourseMongoRepository,
+  LanguageMongoRepository,
+  LessonMongoRepository,
+  ModuleMongoRepository,
+  QuizMongoRepository,
+} from './infrastructure/persistence/catalog.mongo-repositories';
+import {
+  ActivityRecord,
+  ActivitySchema,
+  CourseModuleRecord,
+  CourseModuleSchema,
+  CourseRecord,
+  CourseSchema,
+  LanguageRecord,
+  LanguageSchema,
+  LessonRecord,
+  LessonSchema,
+  QuizRecord,
+  QuizSchema,
+} from './infrastructure/persistence/catalog.schemas';
+import { AuthoringController } from './presentation/http/authoring.controller';
+import { CatalogController } from './presentation/http/catalog.controller';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
-      { name: Language.name, schema: LanguageSchema },
-      { name: Course.name, schema: CourseSchema },
-      { name: LearningModule.name, schema: LearningModuleSchema },
-      { name: Lesson.name, schema: LessonSchema },
-      { name: Activity.name, schema: ActivitySchema },
-      { name: Quiz.name, schema: QuizSchema },
+      { name: LanguageRecord.name, schema: LanguageSchema },
+      { name: CourseRecord.name, schema: CourseSchema },
+      { name: CourseModuleRecord.name, schema: CourseModuleSchema },
+      { name: LessonRecord.name, schema: LessonSchema },
+      { name: ActivityRecord.name, schema: ActivitySchema },
+      { name: QuizRecord.name, schema: QuizSchema },
     ]),
   ],
-  controllers: [CatalogController],
-  providers: [CatalogService],
-  exports: [CatalogService, MongooseModule],
+  controllers: [CatalogController, AuthoringController],
+  providers: [
+    CatalogQueryService,
+    CourseAuthoringService,
+    LanguagesService,
+    CatalogMigrations,
+    { provide: LANGUAGE_REPOSITORY, useClass: LanguageMongoRepository },
+    { provide: COURSE_REPOSITORY, useClass: CourseMongoRepository },
+    { provide: MODULE_REPOSITORY, useClass: ModuleMongoRepository },
+    { provide: LESSON_REPOSITORY, useClass: LessonMongoRepository },
+    { provide: ACTIVITY_REPOSITORY, useClass: ActivityMongoRepository },
+    { provide: QUIZ_REPOSITORY, useClass: QuizMongoRepository },
+  ],
+  exports: [CatalogQueryService, CourseAuthoringService, LanguagesService],
 })
 export class CatalogModule {}

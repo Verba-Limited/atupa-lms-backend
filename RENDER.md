@@ -31,7 +31,13 @@ https://render.com/deploy?repo=https://github.com/Verba-Limited/atupa-lms-backen
 4. When prompted, set secrets:
    - `MONGODB_URI` — Atlas connection string
    - `APP_BASE_URL` — your Render URL, e.g. `https://atupa-lms-api.onrender.com`
-5. Apply the Blueprint and wait for the first deploy.
+   - `FRONTEND_URL` — the web app URL (used in emails, QR codes, payment callbacks)
+   - `CORS_ORIGINS` — the frontend origin(s), comma-separated
+   - `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` — first super admin
+   - `RESEND_API_KEY`, `PAYSTACK_SECRET_KEY`, `CLOUDINARY_*` — integrations
+5. In the Paystack dashboard set the webhook URL to
+   `https://<service>.onrender.com/api/v1/subscriptions/webhooks/paystack`.
+6. Apply the Blueprint and wait for the first deploy.
 
 ## Option B — Manual Web Service
 
@@ -55,4 +61,5 @@ Free web services spin down after ~15 minutes of idle time; first request may be
 ## Notes
 
 - The app binds to `0.0.0.0` and uses Render’s `PORT` automatically.
-- Local `uploads/` are ephemeral on Render; use S3/R2 for production media later.
+- Media is stored on Cloudinary when `CLOUDINARY_*` is set. Without it the API falls back to local `uploads/`, which Render wipes on every deploy.
+- The app refuses to start in production with weak or identical JWT secrets.
