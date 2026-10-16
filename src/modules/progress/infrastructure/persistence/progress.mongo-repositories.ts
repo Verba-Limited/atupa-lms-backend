@@ -93,6 +93,11 @@ export class EnrollmentMongoRepository implements EnrollmentRepository {
       .exec();
   }
 
+  async remove(userId: string, courseId: string) {
+    const res = await this.model.deleteOne({ userId, courseId }).exec();
+    return res.deletedCount > 0;
+  }
+
   async listByUser(userId: string, status?: Enrollment['status']) {
     return toEntities<Enrollment>(
       await this.model

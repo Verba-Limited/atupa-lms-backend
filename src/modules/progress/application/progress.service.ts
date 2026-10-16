@@ -6,6 +6,7 @@ import {
   CourseCompleted,
   LessonCompleted,
 } from '../../../shared/contracts/events';
+import { ConflictError, NotFoundError } from '../../../shared/domain/errors';
 import { todayKey } from '../../../shared/domain/text';
 import { CatalogQueryService } from '../../catalog';
 import { LibraryService } from '../../library';
@@ -94,6 +95,20 @@ export class ProgressService {
       });
     }
     return enrollment;
+  }
+
+  /**
+   * Leaves an in-progress course. Lesson progress is kept, so re-enrolling
+   * resumes where the learner stopped. Completed courses stay on record.
+   */
+  async unenroll(userId: string, courseId: string): Promise<void> {
+    const enrollment = await this.enrollments.find(userId, courseId);
+    if (!enrollment)
+      throw new NotFoundError('You are not enrolled in this course');
+    if (enrollment.status === 'completed') {
+      throw new ConflictError('Completed courses stay on your record');
+    }
+    await this.enrollments.remove(userId, courseId);
   }
 
   /** Saves the learner's position so another device can resume there. */

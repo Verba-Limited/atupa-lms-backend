@@ -73,6 +73,10 @@ export class ParentsService {
     return this.links.parentIds(childId);
   }
 
+  removeAllLinksFor(userId: string): Promise<void> {
+    return this.links.removeAllFor(userId);
+  }
+
   countLinkedParents(): Promise<number> {
     return this.links.countParents();
   }

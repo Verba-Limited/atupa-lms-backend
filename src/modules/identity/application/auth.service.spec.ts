@@ -52,13 +52,15 @@ function setup() {
     verifyRefresh: (t: string) => Promise.resolve({ sub: t.split('.')[1] }),
   };
   const events = { publish: jest.fn().mockResolvedValue(undefined) };
+  const accounts = { deleteAccount: jest.fn().mockResolvedValue(undefined) };
   const service = new AuthService(
     users as unknown as UserRepository,
     hasher,
     tokens,
     events,
+    accounts as never,
   );
-  return { service, users, events };
+  return { service, users, events, accounts };
 }
 
 const learner = {
@@ -129,5 +131,15 @@ describe('AuthService', () => {
     const { service, events } = setup();
     await service.requestPasswordReset('ghost@test.com');
     expect(events.publish).not.toHaveBeenCalled();
+  });
+
+  it('deletes my account only with the right password', async () => {
+    const { service, accounts } = setup();
+    const session = await service.register(learner);
+    await expect(
+      service.deleteOwnAccount(session.user.id, 'wrong'),
+    ).rejects.toBeInstanceOf(UnauthorizedError);
+    await service.deleteOwnAccount(session.user.id, learner.password);
+    expect(accounts.deleteAccount).toHaveBeenCalledWith(session.user.id);
   });
 });

@@ -78,6 +78,15 @@ export class ClassroomMongoRepository
       .exec();
   }
 
+  async removeStudentEverywhere(userId: string) {
+    await this.model
+      .updateMany(
+        { studentUserIds: userId },
+        { $pull: { studentUserIds: userId } },
+      )
+      .exec();
+  }
+
   count(filter: ClassroomFilter) {
     return this.model.countDocuments(toQuery(filter)).exec();
   }

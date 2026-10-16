@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Post,
@@ -40,6 +41,15 @@ export class ProgressController {
     @IdParam('courseId') courseId: string,
   ) {
     return ok(await this.progress.enroll(actor.userId, courseId), 'Enrolled');
+  }
+
+  @Delete('courses/:courseId/enroll')
+  async unenroll(
+    @CurrentUser() actor: Actor,
+    @IdParam('courseId') courseId: string,
+  ) {
+    await this.progress.unenroll(actor.userId, courseId);
+    return ok(null, 'Unenrolled');
   }
 
   /** My courses with progress percentages. */

@@ -20,5 +20,6 @@ export interface ClassroomRepository extends CrudPort<Classroom> {
   addCourse(id: string, courseId: string): Promise<Classroom | null>;
   removeCourse(id: string, courseId: string): Promise<Classroom | null>;
   removeUserFromSchoolClasses(schoolId: string, userId: string): Promise<void>;
+  removeStudentEverywhere(userId: string): Promise<void>;
   count(filter: ClassroomFilter): Promise<number>;
 }

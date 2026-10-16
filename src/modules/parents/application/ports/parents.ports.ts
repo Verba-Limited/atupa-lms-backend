@@ -10,6 +10,7 @@ export interface ParentLinkRepository {
   childIds(parentId: string): Promise<string[]>;
   parentIds(childId: string): Promise<string[]>;
   countParents(): Promise<number>;
+  removeAllFor(userId: string): Promise<void>;
 }
 
 export interface LinkCodeRepository {

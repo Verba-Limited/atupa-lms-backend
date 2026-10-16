@@ -17,6 +17,7 @@ export interface NotificationRepository {
   countUnread(userId: string): Promise<number>;
   markRead(userId: string, id: string): Promise<boolean>;
   markAllRead(userId: string): Promise<number>;
+  delete(userId: string, id: string): Promise<boolean>;
 }
 
 export interface EmailMessage {

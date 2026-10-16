@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { createHash, randomBytes } from 'crypto';
 import type { EventBus } from '../../../shared/application/event-bus.port';
 import { EVENT_BUS } from '../../../shared/application/event-bus.port';
-import { UserInvited } from '../../../shared/contracts/events';
+import { UserDeleted, UserInvited } from '../../../shared/contracts/events';
 import {
   ConflictError,
   NotFoundError,
@@ -166,6 +166,38 @@ export class UsersService {
     if (patch.isActive === false) changes.refreshTokenHash = null;
     const updated = await this.users.update(userId, changes);
     return toPublicUser(updated as User);
+  }
+
+  /**
+   * Deletes an account by anonymising it: personal data is erased, the
+   * account is deactivated and sessions revoked. Learning records stay
+   * (anonymous) so class and school statistics remain consistent.
+   */
+  async deleteAccount(userId: string): Promise<void> {
+    const user = await this.requireUser(userId);
+    await this.users.update(userId, {
+      email: `deleted-${userId}@deleted.atupa.invalid`,
+      firstName: 'Deleted',
+      lastName: 'user',
+      phone: null,
+      dateOfBirth: null,
+      profileImageUrl: null,
+      languageSpecializations: [],
+      schoolId: null,
+      isActive: false,
+      refreshTokenHash: null,
+      passwordResetTokenHash: null,
+      passwordResetExpiresAt: null,
+      passwordHash: await this.hasher.hash(randomBytes(32).toString('hex')),
+    });
+    await this.events.publish(new UserDeleted(userId, user.role));
+  }
+
+  async adminDelete(userId: string, actorId: string): Promise<void> {
+    if (userId === actorId) {
+      throw new ValidationError('You cannot delete your own account here');
+    }
+    await this.deleteAccount(userId);
   }
 
   private async requireUser(id: string): Promise<User> {

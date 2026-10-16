@@ -300,6 +300,10 @@ export class ClassesService {
     return this.classes.removeUserFromSchoolClasses(schoolId, userId);
   }
 
+  removeStudentEverywhere(userId: string) {
+    return this.classes.removeStudentEverywhere(userId);
+  }
+
   countClasses(filter: ClassroomFilter) {
     return this.classes.count(filter);
   }

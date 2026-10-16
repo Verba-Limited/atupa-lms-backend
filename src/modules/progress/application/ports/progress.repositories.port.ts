@@ -38,6 +38,7 @@ export interface EnrollmentRepository {
     percent: number,
     completedAt?: Date,
   ): Promise<void>;
+  remove(userId: string, courseId: string): Promise<boolean>;
   listByUser(
     userId: string,
     status?: Enrollment['status'],

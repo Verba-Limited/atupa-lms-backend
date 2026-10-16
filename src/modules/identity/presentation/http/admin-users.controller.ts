@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { Actor } from '../../../../shared/application/actor';
 import { UserRole } from '../../../../shared/domain/user-role';
@@ -52,5 +60,12 @@ export class AdminUsersController {
       await this.users.adminUpdate(userId, dto, actor.userId),
       'User updated',
     );
+  }
+
+  /** Deletes (anonymises) a user's account. */
+  @Delete(':userId')
+  async remove(@CurrentUser() actor: Actor, @IdParam('userId') userId: string) {
+    await this.users.adminDelete(userId, actor.userId);
+    return ok(null, 'User deleted');
   }
 }

@@ -24,7 +24,12 @@ import type { TokenIssuer } from './ports/token-issuer.port';
 import { TOKEN_ISSUER } from './ports/token-issuer.port';
 import type { UserRepository } from './ports/user.repository.port';
 import { USER_REPOSITORY } from './ports/user.repository.port';
-import { hashToken, ProfileInput, stripUndefined } from './users.service';
+import {
+  hashToken,
+  ProfileInput,
+  stripUndefined,
+  UsersService,
+} from './users.service';
 
 export interface RegisterInput extends ProfileInput {
   email: string;
@@ -48,6 +53,7 @@ export class AuthService {
     @Inject(PASSWORD_HASHER) private readonly hasher: PasswordHasher,
     @Inject(TOKEN_ISSUER) private readonly tokens: TokenIssuer,
     @Inject(EVENT_BUS) private readonly events: EventBus,
+    private readonly accounts: UsersService,
   ) {}
 
   /** Public self sign-up. Privileged roles can only be created by admins. */
@@ -122,6 +128,15 @@ export class AuthService {
 
   async logout(userId: string): Promise<void> {
     await this.users.update(userId, { refreshTokenHash: null });
+  }
+
+  /** Self-service account deletion; requires the current password. */
+  async deleteOwnAccount(userId: string, password: string): Promise<void> {
+    const user = await this.users.findById(userId);
+    if (!user || !(await this.hasher.compare(password, user.passwordHash))) {
+      throw new UnauthorizedError('Password is incorrect');
+    }
+    await this.accounts.deleteAccount(userId);
   }
 
   async changePassword(

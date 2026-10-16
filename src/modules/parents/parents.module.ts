@@ -16,6 +16,7 @@ import {
   ParentLinkRecord,
   ParentLinkSchema,
 } from './infrastructure/persistence/parents.schemas';
+import { ParentsListeners } from './presentation/events/parents.listeners';
 import { ParentsController } from './presentation/http/parents.controller';
 
 @Module({
@@ -29,6 +30,7 @@ import { ParentsController } from './presentation/http/parents.controller';
   controllers: [ParentsController],
   providers: [
     ParentsService,
+    ParentsListeners,
     { provide: PARENT_LINK_REPOSITORY, useClass: ParentLinkMongoRepository },
     { provide: LINK_CODE_REPOSITORY, useClass: LinkCodeMongoRepository },
   ],

@@ -40,6 +40,17 @@ export class UserInvited extends IntegrationEvent {
   }
 }
 
+export class UserDeleted extends IntegrationEvent {
+  static readonly NAME = 'identity.user_deleted';
+  readonly name = UserDeleted.NAME;
+  constructor(
+    readonly userId: string,
+    readonly role: string,
+  ) {
+    super();
+  }
+}
+
 // ---- Catalog / library ----------------------------------------------------
 
 export class CoursePublished extends IntegrationEvent {

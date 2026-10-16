@@ -7,10 +7,10 @@ export interface User {
   role: UserRole;
   firstName?: string;
   lastName?: string;
-  phone?: string;
-  dateOfBirth?: Date;
+  phone?: string | null;
+  dateOfBirth?: Date | null;
   preferredLanguageCode?: string;
-  profileImageUrl?: string;
+  profileImageUrl?: string | null;
   teachingExperienceYears?: number;
   languageSpecializations: string[];
   schoolId?: string | null;

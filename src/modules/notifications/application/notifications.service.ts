@@ -84,6 +84,12 @@ export class NotificationsService {
     }
   }
 
+  async remove(actor: Actor, id: string): Promise<void> {
+    if (!(await this.notifications.delete(actor.userId, id))) {
+      throw new NotFoundError('Notification not found');
+    }
+  }
+
   markAllRead(actor: Actor) {
     return this.notifications.markAllRead(actor.userId);
   }

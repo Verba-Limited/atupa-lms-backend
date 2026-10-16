@@ -1,4 +1,11 @@
-import { Controller, Get, HttpCode, Patch, Query } from '@nestjs/common';
+import {
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Patch,
+  Query,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsBoolean, IsOptional } from 'class-validator';
@@ -52,5 +59,11 @@ export class NotificationsController {
   async read(@CurrentUser() actor: Actor, @IdParam('id') id: string) {
     await this.notifications.markRead(actor, id);
     return ok(null, 'Marked as read');
+  }
+
+  @Delete(':id')
+  async remove(@CurrentUser() actor: Actor, @IdParam('id') id: string) {
+    await this.notifications.remove(actor, id);
+    return ok(null, 'Notification deleted');
   }
 }

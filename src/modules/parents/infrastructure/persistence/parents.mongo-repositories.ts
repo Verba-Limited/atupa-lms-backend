@@ -68,6 +68,12 @@ export class ParentLinkMongoRepository
     );
   }
 
+  async removeAllFor(userId: string) {
+    await this.model
+      .deleteMany({ $or: [{ parentId: userId }, { childId: userId }] })
+      .exec();
+  }
+
   async countParents() {
     return (await this.model.distinct('parentId').exec()).length;
   }

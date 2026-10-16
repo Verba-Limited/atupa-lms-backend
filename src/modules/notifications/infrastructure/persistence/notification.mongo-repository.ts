@@ -45,6 +45,13 @@ export class NotificationMongoRepository implements NotificationRepository {
     return res.matchedCount > 0;
   }
 
+  async delete(userId: string, id: string) {
+    if (!isObjectId(id)) return false;
+    return (
+      (await this.model.deleteOne({ _id: id, userId }).exec()).deletedCount > 0
+    );
+  }
+
   async markAllRead(userId: string) {
     const res = await this.model
       .updateMany({ userId, readAt: null }, { $set: { readAt: new Date() } })

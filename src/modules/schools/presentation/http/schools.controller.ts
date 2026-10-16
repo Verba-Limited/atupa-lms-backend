@@ -103,6 +103,17 @@ export class SchoolsController {
   }
 
   @ApiBearerAuth()
+  @Roles(UserRole.SUPER_ADMIN)
+  @Delete(':schoolId')
+  async remove(
+    @CurrentUser() actor: Actor,
+    @IdParam('schoolId') schoolId: string,
+  ) {
+    await this.schools.remove(actor, schoolId);
+    return ok(null, 'School deleted');
+  }
+
+  @ApiBearerAuth()
   @Roles(UserRole.SCHOOL_ADMIN, UserRole.SUPER_ADMIN)
   @HttpCode(200)
   @Post(':schoolId/join-code/rotate')

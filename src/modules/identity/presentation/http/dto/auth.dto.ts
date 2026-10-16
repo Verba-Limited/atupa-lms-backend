@@ -148,3 +148,10 @@ export class ChangePasswordDto {
   @Matches(PASSWORD_RULE, { message: PASSWORD_MESSAGE })
   newPassword!: string;
 }
+
+export class DeleteAccountDto {
+  @ApiProperty({ description: 'Current password, to confirm' })
+  @IsString()
+  @MaxLength(72)
+  password!: string;
+}

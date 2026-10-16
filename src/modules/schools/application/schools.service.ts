@@ -140,6 +140,22 @@ export class SchoolsService {
     })) as School;
   }
 
+  /** Super admin only. Schools with members must be deactivated instead. */
+  async remove(actor: Actor, schoolId: string): Promise<void> {
+    if (actor.role !== UserRole.SUPER_ADMIN) {
+      throw new ForbiddenError('Only a super admin can delete schools');
+    }
+    await this.require(schoolId);
+    const members = await this.users.countByRole({ schoolId });
+    const total = Object.values(members).reduce((a, b) => a + b, 0);
+    if (total > 0) {
+      throw new ConflictError(
+        `This school still has ${total} member(s). Remove them first or deactivate the school (isActive=false).`,
+      );
+    }
+    await this.schools.delete(schoolId);
+  }
+
   async rotateJoinCode(actor: Actor, schoolId: string): Promise<School> {
     assertCanAdministerSchool(actor, schoolId);
     await this.require(schoolId);
