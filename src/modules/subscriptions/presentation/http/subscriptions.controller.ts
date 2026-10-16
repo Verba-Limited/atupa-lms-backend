@@ -81,6 +81,6 @@ export class SubscriptionsController {
     @Headers('x-paystack-signature') signature?: string,
   ) {
     await this.subscriptions.handleWebhook(req.rawBody, signature);
-    return { received: true };
+    return ok({ received: true });
   }
 }

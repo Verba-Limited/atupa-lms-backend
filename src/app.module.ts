@@ -27,8 +27,7 @@ import { SearchModule } from './modules/search';
 import { SubscriptionsModule } from './modules/subscriptions';
 import { SeedModule } from './seed/seed.module';
 import { SharedModule } from './shared/shared.module';
-import { DomainExceptionFilter } from './shared/presentation/filters/domain-exception.filter';
-import { MongoDuplicateKeyFilter } from './shared/presentation/filters/mongo-duplicate.filter';
+import { GlobalExceptionFilter } from './shared/presentation/filters/global-exception.filter';
 import { JwtAuthGuard } from './shared/presentation/guards/jwt-auth.guard';
 import { RolesGuard } from './shared/presentation/guards/roles.guard';
 
@@ -81,8 +80,7 @@ import { RolesGuard } from './shared/presentation/guards/roles.guard';
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
-    { provide: APP_FILTER, useClass: MongoDuplicateKeyFilter },
-    { provide: APP_FILTER, useClass: DomainExceptionFilter },
+    { provide: APP_FILTER, useClass: GlobalExceptionFilter },
   ],
 })
 export class AppModule {}
