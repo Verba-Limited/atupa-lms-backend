@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { MediaModule } from '../media';
 import { CatalogQueryService } from './application/catalog-query.service';
 import { CourseAuthoringService } from './application/course-authoring.service';
 import { LanguagesService } from './application/languages.service';
@@ -39,6 +40,7 @@ import { CatalogController } from './presentation/http/catalog.controller';
 
 @Module({
   imports: [
+    MediaModule,
     MongooseModule.forFeature([
       { name: LanguageRecord.name, schema: LanguageSchema },
       { name: CourseRecord.name, schema: CourseSchema },

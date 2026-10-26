@@ -19,6 +19,12 @@ import {
   MediaKind,
   MediaPurpose,
 } from '../domain/media-asset.entity';
+import {
+  externalPlayback,
+  guessKind,
+  MediaPlayback,
+  toPlayback,
+} from '../domain/media-playback';
 import type { MediaAssetRepository } from './ports/media-asset.repository.port';
 import { MEDIA_ASSET_REPOSITORY } from './ports/media-asset.repository.port';
 import type {
@@ -57,6 +63,8 @@ export class MediaService {
       kind: MediaKind;
       purpose: MediaPurpose;
       originalName?: string;
+      /** `duration` from the provider's upload response, used if the server can't read it. */
+      durationSeconds?: number;
     },
   ): Promise<MediaAsset> {
     assertPurposeAllowed(actor, input.kind, input.purpose);
@@ -76,6 +84,12 @@ export class MediaService {
     } catch (error) {
       await this.storage.remove(stored.publicId, input.kind);
       throw error;
+    }
+    if (
+      stored.durationSeconds === undefined &&
+      input.durationSeconds !== undefined
+    ) {
+      stored.durationSeconds = input.durationSeconds;
     }
     return this.register(
       actor,
@@ -153,6 +167,87 @@ export class MediaService {
     }
     await this.storage.remove(asset.publicId, asset.kind);
     await this.assets.delete(id);
+  }
+
+  // ---- Playback (learner-facing) ---------------------------------------------
+
+  /**
+   * Playback details for one asset. Content and profile media are visible to
+   * any signed-in user (they appear in lessons); learner submissions only to
+   * their owner and to staff such as teachers.
+   */
+  async getPlayback(actor: Actor, id: string): Promise<MediaPlayback> {
+    const asset = await this.assets.findById(id);
+    if (!asset) throw new NotFoundError('Media not found');
+    if (
+      asset.purpose === MediaPurpose.SUBMISSION &&
+      asset.ownerUserId !== actor.userId &&
+      (actor.role === UserRole.LEARNER || actor.role === UserRole.PARENT)
+    ) {
+      throw new ForbiddenError('You cannot view this submission');
+    }
+    return toPlayback(asset);
+  }
+
+  /**
+   * Resolves media URLs (as stored on lessons, vocabulary, quizzes...) to
+   * playback details. URLs that are not uploaded assets get a basic entry
+   * built from the URL itself, so clients can treat every item the same way.
+   */
+  async resolveUrls(
+    urls: Array<string | undefined | null>,
+    kindHint?: MediaKind,
+  ): Promise<Map<string, MediaPlayback>> {
+    const unique = [...new Set(urls.filter((u): u is string => !!u))];
+    const result = new Map<string, MediaPlayback>();
+    if (!unique.length) return result;
+    const assets = await this.assets.findByUrls(unique);
+    for (const asset of assets) {
+      if (asset.purpose === MediaPurpose.SUBMISSION) continue;
+      const playback = toPlayback(asset);
+      for (const u of [asset.url, asset.optimizedUrl]) {
+        if (unique.includes(u)) result.set(u, playback);
+      }
+    }
+    for (const u of unique) {
+      if (result.has(u)) continue;
+      const kind = kindHint ?? guessKind(u);
+      if (kind) result.set(u, externalPlayback(u, kind));
+    }
+    return result;
+  }
+
+  async resolveUrl(
+    url: string | undefined | null,
+    kindHint?: MediaKind,
+  ): Promise<MediaPlayback | null> {
+    if (!url) return null;
+    return (await this.resolveUrls([url], kindHint)).get(url) ?? null;
+  }
+
+  /**
+   * Checks assets attached to lesson content: they must exist, be content
+   * uploads and match the expected kind. Returns them keyed by id.
+   */
+  async requireContentAssets(
+    refs: Array<{ id: string; kind?: MediaKind }>,
+  ): Promise<Map<string, MediaAsset>> {
+    const assets = await this.assets.findByIds(refs.map((r) => r.id));
+    const byId = new Map(assets.map((a) => [a.id, a]));
+    for (const ref of refs) {
+      const asset = byId.get(ref.id);
+      if (!asset || asset.purpose !== MediaPurpose.CONTENT) {
+        throw new ValidationError(
+          `Media ${ref.id} was not found in the content library`,
+        );
+      }
+      if (ref.kind && asset.kind !== ref.kind) {
+        throw new ValidationError(
+          `Media ${ref.id} is ${asset.kind}, expected ${ref.kind}`,
+        );
+      }
+    }
+    return byId;
   }
 
   private folderFor(

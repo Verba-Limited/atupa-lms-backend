@@ -38,7 +38,12 @@ import { RolesGuard } from './shared/presentation/guards/roles.guard';
  */
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validate: validateEnv,
+      // Tests must never pick up real Cloudinary/Resend/Paystack keys from .env.
+      ignoreEnvFile: process.env.NODE_ENV === 'test',
+    }),
     SharedModule,
     MongooseModule.forRootAsync({
       inject: [AppConfig],

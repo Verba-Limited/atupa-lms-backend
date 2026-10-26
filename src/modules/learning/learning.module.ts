@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { CatalogModule } from '../catalog';
+import { LibraryModule } from '../library';
+import { MediaModule } from '../media';
 import { SubscriptionsModule } from '../subscriptions';
 import { LearningAccessService } from './application/learning-access.service';
 import { LessonPlayerService } from './application/lesson-player.service';
@@ -17,6 +19,8 @@ import { LearningController } from './presentation/http/learning.controller';
   imports: [
     CatalogModule,
     SubscriptionsModule,
+    MediaModule,
+    LibraryModule,
     MongooseModule.forFeature([
       { name: QuizAttemptRecord.name, schema: QuizAttemptSchema },
     ]),

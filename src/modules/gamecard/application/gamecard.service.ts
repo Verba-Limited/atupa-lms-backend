@@ -55,7 +55,7 @@ export class GamecardService {
   async getCardView(code: string) {
     const card = await this.requireActiveCard(code);
     const [translations, lessons] = await Promise.all([
-      this.library.getConcept(card.conceptKey),
+      this.library.getConceptView(card.conceptKey),
       this.catalog.listPublishedLessons({ gamecardCode: card.code }, 10),
     ]);
     return {

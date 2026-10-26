@@ -26,7 +26,15 @@ import {
   CourseModule,
   CourseType,
 } from '../domain/course.entity';
-import { Lesson, LessonBlock } from '../domain/lesson.entity';
+import { MediaKind, MediaService } from '../../media';
+import { Lesson, LessonBlock, LessonBlockType } from '../domain/lesson.entity';
+
+const BLOCK_MEDIA_KIND: Partial<Record<LessonBlockType, MediaKind>> = {
+  [LessonBlockType.IMAGE]: MediaKind.IMAGE,
+  [LessonBlockType.AUDIO]: MediaKind.AUDIO,
+  [LessonBlockType.VIDEO]: MediaKind.VIDEO,
+  [LessonBlockType.PRONUNCIATION]: MediaKind.AUDIO,
+};
 import {
   assertValidQuestions,
   Quiz,
@@ -133,6 +141,7 @@ export class CourseAuthoringService {
     private readonly activities: ActivityRepository,
     @Inject(QUIZ_REPOSITORY) private readonly quizzes: QuizRepository,
     @Inject(EVENT_BUS) private readonly events: EventBus,
+    private readonly media: MediaService,
   ) {}
 
   // ---- Courses --------------------------------------------------------------
@@ -306,6 +315,7 @@ export class CourseAuthoringService {
     const module = await this.requireManagedModule(actor, moduleId);
     const order =
       input.order ?? (await this.lessons.list({ moduleId })).length + 1;
+    if (input.blocks) input.blocks = await this.attachMedia(input.blocks);
     return this.lessons.create({
       blocks: [],
       vocabulary: [],
@@ -327,7 +337,29 @@ export class CourseAuthoringService {
     input: Partial<LessonInput>,
   ) {
     await this.requireManagedLesson(actor, lessonId);
+    if (input.blocks) input.blocks = await this.attachMedia(input.blocks);
     return this.lessons.update(lessonId, input);
+  }
+
+  /**
+   * Blocks may point at an uploaded file with `mediaAssetId`. The file must
+   * be in the content library and match the block type; `mediaUrl` is then
+   * filled from it so lessons always carry a playable link.
+   */
+  private async attachMedia(blocks: LessonBlock[]): Promise<LessonBlock[]> {
+    const refs = blocks
+      .filter((b) => b.mediaAssetId)
+      .map((b) => ({
+        id: b.mediaAssetId as string,
+        kind: BLOCK_MEDIA_KIND[b.type],
+      }));
+    if (!refs.length) return blocks;
+    const assets = await this.media.requireContentAssets(refs);
+    return blocks.map((b) =>
+      b.mediaAssetId
+        ? { ...b, mediaUrl: assets.get(b.mediaAssetId)?.url ?? b.mediaUrl }
+        : b,
+    );
   }
 
   async setLessonStatus(actor: Actor, lessonId: string, status: ContentStatus) {

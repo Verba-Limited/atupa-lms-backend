@@ -40,20 +40,20 @@ export class LibraryController {
   async listVocabulary(@Query() query: VocabularyQueryDto) {
     const { page, limit, ...filter } = query;
     return ok(
-      await this.library.listVocabulary(filter, pageOf({ page, limit })),
+      await this.library.listVocabularyView(filter, pageOf({ page, limit })),
     );
   }
 
   @Public()
   @Get('vocabulary/concepts/:conceptKey')
   async concept(@Param('conceptKey') conceptKey: string) {
-    return ok(await this.library.getConcept(conceptKey.toLowerCase()));
+    return ok(await this.library.getConceptView(conceptKey.toLowerCase()));
   }
 
   @Public()
   @Get('vocabulary/:id')
   async getVocabulary(@IdParam('id') id: string) {
-    return ok(await this.library.getVocabulary(id));
+    return ok(await this.library.getVocabularyView(id));
   }
 
   @Public()
@@ -66,7 +66,7 @@ export class LibraryController {
   @Public()
   @Get('cultural-topics/:id')
   async getTopic(@IdParam('id') id: string) {
-    return ok(await this.library.getTopic(id));
+    return ok(await this.library.getTopicView(id));
   }
 
   @Public()

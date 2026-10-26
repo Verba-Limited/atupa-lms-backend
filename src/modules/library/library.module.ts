@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { MediaModule } from '../media';
 import { LibraryService } from './application/library.service';
 import {
   CULTURAL_TOPIC_REPOSITORY,
@@ -26,6 +27,7 @@ import {
 
 @Module({
   imports: [
+    MediaModule,
     MongooseModule.forFeature([
       { name: VocabularyRecord.name, schema: VocabularySchema },
       { name: CulturalTopicRecord.name, schema: CulturalTopicSchema },

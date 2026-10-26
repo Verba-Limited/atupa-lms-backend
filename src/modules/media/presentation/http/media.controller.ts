@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Post,
   Query,
   UploadedFile,
@@ -23,6 +24,7 @@ import { MAX_SERVER_UPLOAD_BYTES } from '../../domain/media-asset.entity';
 import {
   ConfirmUploadDto,
   ListMediaQueryDto,
+  PlaybackLookupDto,
   RequestUploadDto,
   ServerUploadDto,
 } from './dto/media.dto';
@@ -99,6 +101,22 @@ export class MediaController {
         pageOf(query),
       ),
     );
+  }
+
+  /**
+   * Playback details for media URLs found in lessons, vocabulary, quizzes
+   * and activities. Returns `{ [url]: playback }`.
+   */
+  @HttpCode(200)
+  @Post('playback')
+  async playbackLookup(@Body() dto: PlaybackLookupDto) {
+    return ok(Object.fromEntries(await this.media.resolveUrls(dto.urls)));
+  }
+
+  /** Playback details (sources, poster, duration) for one media item. */
+  @Get(':id/playback')
+  async playback(@CurrentUser() actor: Actor, @IdParam('id') id: string) {
+    return ok(await this.media.getPlayback(actor, id));
   }
 
   @Get(':id')
