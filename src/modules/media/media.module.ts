@@ -1,4 +1,5 @@
 import { Logger, Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { MongooseModule } from '@nestjs/mongoose';
 import { resolve } from 'path';
 import { AppConfig } from '../../config/app-config';
@@ -16,6 +17,7 @@ import {
 import { CloudinaryMediaStorage } from './infrastructure/storage/cloudinary.media-storage';
 import { LocalDiskMediaStorage } from './infrastructure/storage/local-disk.media-storage';
 import { MediaController } from './presentation/http/media.controller';
+import { MediaPlaybackInterceptor } from './presentation/interceptors/media-playback.interceptor';
 
 /** Cloudinary when configured, local disk otherwise (development). */
 function createMediaStorage(config: AppConfig): MediaStorage {
@@ -43,6 +45,8 @@ function createMediaStorage(config: AppConfig): MediaStorage {
   controllers: [MediaController],
   providers: [
     MediaService,
+    // Adds playback details next to media URLs in every API response.
+    { provide: APP_INTERCEPTOR, useClass: MediaPlaybackInterceptor },
     { provide: MEDIA_ASSET_REPOSITORY, useClass: MediaAssetMongoRepository },
     {
       provide: MEDIA_STORAGE,

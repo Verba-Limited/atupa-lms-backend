@@ -62,7 +62,7 @@ export class ProfileFieldsDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsUrl({ require_protocol: true })
+  @IsUrl({ require_protocol: true, require_tld: false })
   profileImageUrl?: string;
 
   @ApiPropertyOptional({ description: 'Teachers' })
