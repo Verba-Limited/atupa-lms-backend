@@ -197,13 +197,19 @@ export class MediaService {
   async resolveUrls(
     urls: Array<string | undefined | null>,
     kindHint?: MediaKind,
+    options: { includeSubmissions?: boolean } = {},
   ): Promise<Map<string, MediaPlayback>> {
     const unique = [...new Set(urls.filter((u): u is string => !!u))];
     const result = new Map<string, MediaPlayback>();
     if (!unique.length) return result;
     const assets = await this.assets.findByUrls(unique);
     for (const asset of assets) {
-      if (asset.purpose === MediaPurpose.SUBMISSION) continue;
+      if (
+        asset.purpose === MediaPurpose.SUBMISSION &&
+        !options.includeSubmissions
+      ) {
+        continue;
+      }
       const playback = toPlayback(asset);
       for (const u of [asset.url, asset.optimizedUrl]) {
         if (unique.includes(u)) result.set(u, playback);

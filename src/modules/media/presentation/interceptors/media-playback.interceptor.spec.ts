@@ -49,6 +49,9 @@ describe('MediaPlaybackInterceptor', () => {
       expect.objectContaining({ url: 'https://cdn/rec.mp3' }),
     ]);
     expect(out.data).not.toHaveProperty('launch');
+    expect(resolveUrls).toHaveBeenCalledWith(expect.any(Array), undefined, {
+      includeSubmissions: true,
+    });
   });
 
   it('keeps playback a use case already provided and skips bodies without media', async () => {
