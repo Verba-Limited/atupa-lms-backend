@@ -18,6 +18,15 @@ export class MediaAssetMongoRepository
     super(model);
   }
 
+  findByUrls(urls: string[]) {
+    if (!urls.length) return Promise.resolve([]);
+    return this.findManyBy(
+      { $or: [{ url: { $in: urls } }, { optimizedUrl: { $in: urls } }] },
+      { createdAt: -1 },
+      500,
+    );
+  }
+
   findByPublicId(publicId: string) {
     return this.findOneBy({ publicId });
   }

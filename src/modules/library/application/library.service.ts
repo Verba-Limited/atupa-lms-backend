@@ -5,6 +5,7 @@ import { GamePublished } from '../../../shared/contracts/events';
 import { ContentStatus } from '../../../shared/domain/enums';
 import { NotFoundError } from '../../../shared/domain/errors';
 import { Page, PageRequest } from '../../../shared/domain/pagination';
+import { MediaKind, MediaPlayback, MediaService } from '../../media';
 import {
   CulturalTopic,
   Game,
@@ -26,6 +27,11 @@ import {
 
 type Input<T> = Omit<T, 'id' | 'createdAt'>;
 
+export type VocabularyView = VocabularyEntry & {
+  audio: MediaPlayback | null;
+  image: MediaPlayback | null;
+};
+
 /**
  * Vocabulary bank, cultural education topics and the ATUPA games catalogue.
  * `publishedOnly` reads are for learners; unrestricted reads for the CMS.
@@ -39,7 +45,58 @@ export class LibraryService {
     private readonly topics: CulturalTopicRepository,
     @Inject(GAME_REPOSITORY) private readonly games: GameRepository,
     @Inject(EVENT_BUS) private readonly events: EventBus,
+    private readonly media: MediaService,
   ) {}
+
+  // ---- Learner views with playable media ------------------------------------
+
+  /** Adds `audio` (pronunciation) and `image` playback to vocabulary entries. */
+  async withMedia(entries: VocabularyEntry[]): Promise<VocabularyView[]> {
+    const [audio, images] = await Promise.all([
+      this.media.resolveUrls(
+        entries.map((e) => e.audioUrl),
+        MediaKind.AUDIO,
+      ),
+      this.media.resolveUrls(
+        entries.map((e) => e.imageUrl),
+        MediaKind.IMAGE,
+      ),
+    ]);
+    return entries.map((e) => ({
+      ...e,
+      audio: (e.audioUrl && audio.get(e.audioUrl)) || null,
+      image: (e.imageUrl && images.get(e.imageUrl)) || null,
+    }));
+  }
+
+  async listVocabularyView(filter: VocabularyFilter, page: PageRequest) {
+    const result = await this.listVocabulary(filter, page);
+    return { ...result, items: await this.withMedia(result.items) };
+  }
+
+  async getVocabularyView(id: string): Promise<VocabularyView> {
+    const [view] = await this.withMedia([await this.getVocabulary(id)]);
+    return view;
+  }
+
+  async getConceptView(conceptKey: string): Promise<VocabularyView[]> {
+    return this.withMedia(await this.getConcept(conceptKey));
+  }
+
+  /** Cultural topic with `media` playback on each image/audio/video block. */
+  async getTopicView(id: string) {
+    const topic = await this.getTopic(id);
+    const playback = await this.media.resolveUrls(
+      topic.blocks.map((b) => b.mediaUrl),
+    );
+    return {
+      ...topic,
+      blocks: topic.blocks.map((b) => ({
+        ...b,
+        media: (b.mediaUrl && playback.get(b.mediaUrl)) || null,
+      })),
+    };
+  }
 
   // ---- Vocabulary -------------------------------------------------------------
 

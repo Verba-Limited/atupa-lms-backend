@@ -30,10 +30,10 @@ export class MediaAssetRecord {
   @Prop()
   durationSeconds?: number;
 
-  @Prop({ required: true })
+  @Prop({ required: true, index: true })
   url!: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, index: true })
   optimizedUrl!: string;
 
   @Prop()

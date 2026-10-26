@@ -1,6 +1,7 @@
 // Public API of the library module.
 export { LibraryModule } from './library.module';
 export { LibraryService } from './application/library.service';
+export type { VocabularyView } from './application/library.service';
 export type {
   CulturalTopic,
   Game,

@@ -15,6 +15,7 @@ import {
   QuizAttempt,
   shuffle,
 } from '../domain/quiz-attempt.entity';
+import { externalPlayback, MediaKind, MediaService } from '../../media';
 import { LearningAccessService } from './learning-access.service';
 import type { QuizAttemptRepository } from './ports/quiz-attempt.repository.port';
 import { QUIZ_ATTEMPT_REPOSITORY } from './ports/quiz-attempt.repository.port';
@@ -27,6 +28,7 @@ export class QuizAttemptsService {
     private readonly catalog: CatalogQueryService,
     private readonly access: LearningAccessService,
     @Inject(EVENT_BUS) private readonly events: EventBus,
+    private readonly media: MediaService,
   ) {}
 
   /**
@@ -83,10 +85,12 @@ export class QuizAttemptsService {
       },
       startedAt: attempt.startedAt,
       expiresAt: attempt.expiresAt,
-      questions: attempt.questionOrder
-        .map((id) => byId.get(id))
-        .filter((q) => !!q)
-        .map(toLearnerQuestion),
+      questions: await this.withMedia(
+        attempt.questionOrder
+          .map((id) => byId.get(id))
+          .filter((q) => !!q)
+          .map(toLearnerQuestion),
+      ),
     };
   }
 
@@ -141,17 +145,38 @@ export class QuizAttemptsService {
     const byId = new Map(quiz.questions.map((q) => [q.id, q]));
     return {
       ...this.toResult(attempt, quiz),
-      questions: attempt.questionOrder
-        .map((id) => byId.get(id))
-        .filter((q) => !!q)
-        .map((q) => ({
-          ...toLearnerQuestion(q),
-          yourAnswer: attempt.answers[q.id] ?? null,
-          correctAnswer: q.correctAnswer,
-          explanation: q.explanation,
-          correct: resultById.get(q.id)?.correct ?? false,
-        })),
+      questions: await this.withMedia(
+        attempt.questionOrder
+          .map((id) => byId.get(id))
+          .filter((q) => !!q)
+          .map((q) => ({
+            ...toLearnerQuestion(q),
+            yourAnswer: attempt.answers[q.id] ?? null,
+            correctAnswer: q.correctAnswer,
+            explanation: q.explanation,
+            correct: resultById.get(q.id)?.correct ?? false,
+          })),
+      ),
     };
+  }
+
+  /** Adds `media` playback to image/audio questions. */
+  private async withMedia<T extends { type: string; mediaUrl?: string }>(
+    questions: T[],
+  ) {
+    const resolved = await this.media.resolveUrls(
+      questions.map((q) => q.mediaUrl),
+    );
+    return questions.map((q) => ({
+      ...q,
+      media: q.mediaUrl
+        ? (resolved.get(q.mediaUrl) ??
+          externalPlayback(
+            q.mediaUrl,
+            q.type === 'audio' ? MediaKind.AUDIO : MediaKind.IMAGE,
+          ))
+        : null,
+    }));
   }
 
   async listMine(actor: Actor, quizId?: string) {

@@ -83,6 +83,7 @@ export class CloudinaryMediaStorage implements MediaStorage {
     try {
       const resource = (await cloudinary.api.resource(publicId, {
         resource_type: resourceType(kind),
+        media_metadata: true,
       })) as CloudinaryResource;
       return this.toStoredMedia(resource, kind);
     } catch (error) {
