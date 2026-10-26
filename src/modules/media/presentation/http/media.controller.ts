@@ -20,7 +20,11 @@ import { pageOf } from '../../../../shared/presentation/dto/pagination-query.dto
 import { ok } from '../../../../shared/presentation/http/api-response';
 import { IdParam } from '../../../../shared/presentation/http/id-param';
 import { MediaService } from '../../application/media.service';
-import { MAX_SERVER_UPLOAD_BYTES } from '../../domain/media-asset.entity';
+import {
+  MAX_SERVER_UPLOAD_BYTES,
+  MediaAsset,
+} from '../../domain/media-asset.entity';
+import { toPlayback } from '../../domain/media-playback';
 import {
   ConfirmUploadDto,
   ListMediaQueryDto,
@@ -28,6 +32,11 @@ import {
   RequestUploadDto,
   ServerUploadDto,
 } from './dto/media.dto';
+
+/** Media records include a ready-to-use playback object for previews. */
+function withPlayback(asset: MediaAsset) {
+  return { ...asset, playback: toPlayback(asset) };
+}
 
 const UPLOAD_RATE_LIMIT = { default: { limit: 30, ttl: 60_000 } };
 
@@ -58,7 +67,10 @@ export class MediaController {
     @CurrentUser() actor: Actor,
     @Body() dto: ConfirmUploadDto,
   ) {
-    return ok(await this.media.confirmUpload(actor, dto), 'Media saved');
+    return ok(
+      withPlayback(await this.media.confirmUpload(actor, dto)),
+      'Media saved',
+    );
   }
 
   /** Upload through the API (files up to 25MB). */
@@ -87,20 +99,19 @@ export class MediaController {
   ) {
     if (!file) throw new BadRequestException('A file is required');
     return ok(
-      await this.media.uploadViaServer(actor, file, dto.purpose),
+      withPlayback(await this.media.uploadViaServer(actor, file, dto.purpose)),
       'Media saved',
     );
   }
 
   @Get()
   async list(@CurrentUser() actor: Actor, @Query() query: ListMediaQueryDto) {
-    return ok(
-      await this.media.list(
-        actor,
-        { kind: query.kind, all: query.all },
-        pageOf(query),
-      ),
+    const page = await this.media.list(
+      actor,
+      { kind: query.kind, all: query.all },
+      pageOf(query),
     );
+    return ok({ ...page, items: page.items.map(withPlayback) });
   }
 
   /**
@@ -121,7 +132,7 @@ export class MediaController {
 
   @Get(':id')
   async get(@CurrentUser() actor: Actor, @IdParam('id') id: string) {
-    return ok(await this.media.get(actor, id));
+    return ok(withPlayback(await this.media.get(actor, id)));
   }
 
   @Delete(':id')

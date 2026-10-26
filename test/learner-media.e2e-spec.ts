@@ -10,6 +10,7 @@ describe('Learner media playback (e2e)', () => {
   let video: { id: string; url: string };
   let lessonId: string;
   let quizId: string;
+  let courseId: string;
 
   const upload = async (
     s: Session,
@@ -59,8 +60,10 @@ describe('Learner media playback (e2e)', () => {
         languageCode: 'yoruba',
         level: 'beginner',
         title: 'Media course',
+        coverImageUrl: 'https://example.com/cover.png',
       })
       .expect(201);
+    courseId = course.body.data.id;
     const mod = await ctx
       .http()
       .post(`/api/v1/authoring/courses/${course.body.data.id}/modules`)
@@ -259,6 +262,137 @@ describe('Learner media playback (e2e)', () => {
     expect(res.body.data[0].audio).toMatchObject({
       id: audio.id,
       sources: [{ type: 'audio/mpeg' }],
+    });
+  });
+
+  describe('staff side', () => {
+    it("teacher's course editor shows playable media", async () => {
+      const tree = await ctx
+        .http()
+        .get(`/api/v1/authoring/courses/${courseId}`)
+        .set(auth(teacher))
+        .expect(200);
+      const lesson = tree.body.data.modules[0].lessons[0];
+      expect(tree.body.data.course.coverImage).toMatchObject({
+        kind: 'image',
+        url: 'https://example.com/cover.png',
+      });
+      expect(lesson.blocks[0].media).toMatchObject({
+        id: audio.id,
+        kind: 'audio',
+      });
+      expect(lesson.blocks[1].media).toMatchObject({
+        id: video.id,
+        kind: 'video',
+      });
+      expect(lesson.quizzes[0].questions[0].media).toMatchObject({
+        id: audio.id,
+      });
+      expect(lesson.activities[0].payload.audio).toMatchObject({
+        id: audio.id,
+      });
+    });
+
+    it('public course lists include the cover image', async () => {
+      const res = await ctx
+        .http()
+        .get('/api/v1/courses?q=Media course')
+        .expect(200);
+      expect(res.body.data.items[0].coverImage).toMatchObject({
+        kind: 'image',
+      });
+    });
+
+    it('CMS vocabulary list and media library include playback', async () => {
+      const admin = await adminSession(ctx);
+      const vocab = await ctx
+        .http()
+        .get('/api/v1/authoring/vocabulary?q=good_morning_media')
+        .set(auth(admin))
+        .expect(200);
+      expect(vocab.body.data.items[0].audio).toMatchObject({ id: audio.id });
+      const mine = await ctx
+        .http()
+        .get('/api/v1/media')
+        .set(auth(teacher))
+        .expect(200);
+      expect(mine.body.data.items[0].playback.sources.length).toBeGreaterThan(
+        0,
+      );
+      const one = await ctx
+        .http()
+        .get(`/api/v1/media/${video.id}`)
+        .set(auth(teacher))
+        .expect(200);
+      expect(one.body.data.playback).toMatchObject({
+        id: video.id,
+        kind: 'video',
+      });
+    });
+
+    it('teacher can play a learner voice-recording submission', async () => {
+      const klass = await ctx
+        .http()
+        .post('/api/v1/classes')
+        .set(auth(teacher))
+        .send({ name: 'Media class' })
+        .expect(201);
+      const pupil = await register(ctx, 'learner');
+      await ctx
+        .http()
+        .post('/api/v1/classes/join')
+        .set(auth(pupil))
+        .send({ code: klass.body.data.joinCode })
+        .expect(200);
+      const assignment = await ctx
+        .http()
+        .post('/api/v1/assignments')
+        .set(auth(teacher))
+        .send({
+          classroomId: klass.body.data.id,
+          title: 'Say good morning',
+          type: 'audio',
+        })
+        .expect(201);
+      const recording = await upload(
+        pupil,
+        'my-voice.mp3',
+        'audio/mpeg',
+        'submission',
+      );
+      await ctx
+        .http()
+        .post(`/api/v1/assignments/${assignment.body.data.id}/submit`)
+        .set(auth(pupil))
+        .send({ mediaUrls: [recording.url] })
+        .expect(200);
+      const review = await ctx
+        .http()
+        .get(`/api/v1/assignments/${assignment.body.data.id}`)
+        .set(auth(teacher))
+        .expect(200);
+      expect(review.body.data.submissions[0].media).toEqual([
+        expect.objectContaining({ url: recording.url, kind: 'audio' }),
+      ]);
+    });
+
+    it('profiles include the profile photo', async () => {
+      const photo = await upload(learner, 'me.png', 'image/png', 'profile');
+      await ctx
+        .http()
+        .patch('/api/v1/users/me')
+        .set(auth(learner))
+        .send({ profileImageUrl: photo.url })
+        .expect(200);
+      const me = await ctx
+        .http()
+        .get('/api/v1/users/me')
+        .set(auth(learner))
+        .expect(200);
+      expect(me.body.data.profileImage).toMatchObject({
+        id: photo.id,
+        kind: 'image',
+      });
     });
   });
 });
