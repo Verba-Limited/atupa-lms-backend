@@ -115,7 +115,11 @@ export class MediaPlaybackInterceptor implements NestInterceptor {
     for (const [url, kind] of acc.urls)
       byKind.set(kind, [...(byKind.get(kind) ?? []), url]);
     for (const [kind, list] of byKind) {
-      for (const [url, p] of await this.media.resolveUrls(list, kind))
+      for (const [url, p] of await this.media.resolveUrls(list, kind, {
+        // A submission URL only appears in responses whose use case already
+        // checked the viewer may see it (owner, their teacher...).
+        includeSubmissions: true,
+      }))
         playback.set(url, p);
     }
     return annotate(body, playback);

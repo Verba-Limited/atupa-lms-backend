@@ -372,7 +372,11 @@ describe('Learner media playback (e2e)', () => {
         .set(auth(teacher))
         .expect(200);
       expect(review.body.data.submissions[0].media).toEqual([
-        expect.objectContaining({ url: recording.url, kind: 'audio' }),
+        expect.objectContaining({
+          id: recording.id,
+          url: recording.url,
+          kind: 'audio',
+        }),
       ]);
     });
 
