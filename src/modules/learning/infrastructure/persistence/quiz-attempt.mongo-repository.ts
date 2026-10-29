@@ -48,6 +48,16 @@ export class QuizAttemptMongoRepository
     );
   }
 
+  async findOverdue(before: Date, limit: number) {
+    return toEntities<QuizAttempt>(
+      await this.model
+        .find({ status: 'in_progress', expiresAt: { $lt: before } })
+        .limit(limit)
+        .lean()
+        .exec(),
+    );
+  }
+
   async list(
     filter: { userIds: string[]; quizId?: string; courseId?: string },
     limit: number,

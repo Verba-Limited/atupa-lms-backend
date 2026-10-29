@@ -375,6 +375,11 @@ export class QuizQuestionDto {
   @IsUrl({ require_protocol: true, require_tld: false })
   mediaUrl?: string;
 
+  @ApiPropertyOptional({ description: 'Uploaded file; sets mediaUrl' })
+  @IsOptional()
+  @IsMongoId()
+  mediaAssetId?: string;
+
   @ApiPropertyOptional({ example: { choices: ['Ẹ kú àárọ̀', 'Ẹ kú alẹ́'] } })
   @IsOptional()
   @IsObject()

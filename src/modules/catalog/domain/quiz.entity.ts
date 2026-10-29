@@ -18,6 +18,8 @@ export interface QuizQuestion {
   type: QuestionType;
   prompt: string;
   mediaUrl?: string;
+  /** Uploaded content-library file; fills `mediaUrl` when set. */
+  mediaAssetId?: string;
   /** Learner-visible options, e.g. { choices: [...] } or { left, right }. */
   options?: Record<string, unknown>;
   correctAnswer: AnswerValue;

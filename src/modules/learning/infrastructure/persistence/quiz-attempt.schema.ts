@@ -31,3 +31,4 @@ export class QuizAttemptRecord {
 export const QuizAttemptSchema =
   SchemaFactory.createForClass(QuizAttemptRecord);
 QuizAttemptSchema.index({ userId: 1, quizId: 1, status: 1 });
+QuizAttemptSchema.index({ status: 1, expiresAt: 1 });

@@ -13,6 +13,7 @@ import {
   QuizAttemptRecord,
   QuizAttemptSchema,
 } from './infrastructure/persistence/quiz-attempt.schema';
+import { ExpireAttemptsJob } from './infrastructure/scheduling/expire-attempts.job';
 import { LearningController } from './presentation/http/learning.controller';
 
 @Module({
@@ -30,6 +31,7 @@ import { LearningController } from './presentation/http/learning.controller';
     LessonPlayerService,
     QuizAttemptsService,
     LearningAccessService,
+    ExpireAttemptsJob,
     { provide: QUIZ_ATTEMPT_REPOSITORY, useClass: QuizAttemptMongoRepository },
   ],
   exports: [QuizAttemptsService, LearningAccessService],

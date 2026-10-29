@@ -37,6 +37,7 @@ const BLOCK_MEDIA_KIND: Partial<Record<LessonBlockType, MediaKind>> = {
 };
 import {
   assertValidQuestions,
+  QuestionType,
   Quiz,
   QuizQuestion,
 } from '../domain/quiz.entity';
@@ -57,6 +58,11 @@ import {
   MODULE_REPOSITORY,
   QUIZ_REPOSITORY,
 } from './ports/catalog.repositories.port';
+
+const QUESTION_MEDIA_KIND: Partial<Record<QuestionType, MediaKind>> = {
+  [QuestionType.IMAGE]: MediaKind.IMAGE,
+  [QuestionType.AUDIO]: MediaKind.AUDIO,
+};
 
 export interface CourseInput {
   languageCode: string;
@@ -412,7 +418,9 @@ export class CourseAuthoringService {
   ): Promise<Quiz> {
     await this.requireManagedCourse(actor, courseId);
     await this.assertQuizPlacement(courseId, input.moduleId, input.lessonId);
-    const questions = normalizeQuestions(input.questions);
+    const questions = await this.attachQuestionMedia(
+      normalizeQuestions(input.questions),
+    );
     assertValidQuestions(questions);
     return this.quizzes.create({
       courseId,
@@ -444,12 +452,33 @@ export class CourseAuthoringService {
       );
     }
     if (input.questions) {
-      patch.questions = normalizeQuestions(input.questions);
+      patch.questions = await this.attachQuestionMedia(
+        normalizeQuestions(input.questions),
+      );
       assertValidQuestions(patch.questions);
     } else {
       delete patch.questions;
     }
     return (await this.quizzes.update(quizId, patch)) as Quiz;
+  }
+
+  /** Same as lesson blocks: `mediaAssetId` must be a matching content upload. */
+  private async attachQuestionMedia(
+    questions: QuizQuestion[],
+  ): Promise<QuizQuestion[]> {
+    const refs = questions
+      .filter((q) => q.mediaAssetId)
+      .map((q) => ({
+        id: q.mediaAssetId as string,
+        kind: QUESTION_MEDIA_KIND[q.type],
+      }));
+    if (!refs.length) return questions;
+    const assets = await this.media.requireContentAssets(refs);
+    return questions.map((q) =>
+      q.mediaAssetId
+        ? { ...q, mediaUrl: assets.get(q.mediaAssetId)?.url ?? q.mediaUrl }
+        : q,
+    );
   }
 
   async deleteQuiz(actor: Actor, quizId: string): Promise<void> {

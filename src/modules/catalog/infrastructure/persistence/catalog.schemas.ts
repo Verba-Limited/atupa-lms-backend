@@ -217,6 +217,9 @@ export class QuizQuestionRecord {
   @Prop()
   mediaUrl?: string;
 
+  @Prop()
+  mediaAssetId?: string;
+
   @Prop({ type: MongooseSchema.Types.Mixed })
   options?: Record<string, unknown>;
 

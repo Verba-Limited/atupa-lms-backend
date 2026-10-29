@@ -13,7 +13,9 @@ import {
   gradeQuiz,
   isPastDeadline,
   QuizAttempt,
-  shuffle,
+  remainingSeconds,
+  shuffleQuestionOrder,
+  TIMER_GRACE_SECONDS,
 } from '../domain/quiz-attempt.entity';
 import { externalPlayback, MediaKind, MediaService } from '../../media';
 import { LearningAccessService } from './learning-access.service';
@@ -53,12 +55,17 @@ export class QuizAttemptsService {
       }
       const now = new Date();
       const ids = quiz.questions.map((q) => q.id);
+      const [previous] = quiz.randomizeQuestions
+        ? await this.attempts.list({ userIds: [actor.userId], quizId }, 1)
+        : [];
       attempt = await this.attempts.create({
         userId: actor.userId,
         quizId,
         courseId: quiz.courseId,
         lessonId: quiz.lessonId,
-        questionOrder: quiz.randomizeQuestions ? shuffle(ids) : ids,
+        questionOrder: quiz.randomizeQuestions
+          ? shuffleQuestionOrder(ids, previous?.questionOrder)
+          : ids,
         status: 'in_progress',
         startedAt: now,
         expiresAt: quiz.timerSeconds
@@ -85,6 +92,9 @@ export class QuizAttemptsService {
       },
       startedAt: attempt.startedAt,
       expiresAt: attempt.expiresAt,
+      /** Clients should count down from this, not from their own clock. */
+      remainingSeconds: remainingSeconds(attempt),
+      serverTime: new Date(),
       questions: await this.withMedia(
         attempt.questionOrder
           .map((id) => byId.get(id))
@@ -230,6 +240,35 @@ export class QuizAttemptsService {
     };
   }
 
+  /**
+   * Records attempts whose timer ran out and were never submitted (the
+   * learner closed the app), so they count as attempts and show in reports.
+   */
+  async expireOverdue(now = new Date()): Promise<number> {
+    const overdue = await this.attempts.findOverdue(
+      new Date(now.getTime() - TIMER_GRACE_SECONDS * 1000),
+      200,
+    );
+    if (!overdue.length) return 0;
+    const quizzes = await this.catalog.findQuizzes([
+      ...new Set(overdue.map((a) => a.quizId)),
+    ]);
+    const byId = new Map(quizzes.map((q) => [q.id, q]));
+    let count = 0;
+    for (const attempt of overdue) {
+      const quiz = byId.get(attempt.quizId);
+      // A deleted quiz has nothing to report on; just close the attempt.
+      const expired = quiz
+        ? await this.expire(attempt, quiz)
+        : await this.attempts.finish(attempt.id, {
+            status: 'expired',
+            submittedAt: attempt.expiresAt,
+          });
+      if (expired) count++;
+    }
+    return count;
+  }
+
   private async expire(
     attempt: QuizAttempt,
     quiz: Quiz,
@@ -237,7 +276,13 @@ export class QuizAttemptsService {
     const totalPoints = quiz.questions.reduce((s, q) => s + q.points, 0);
     const expired = await this.attempts.finish(attempt.id, {
       status: 'expired',
-      submittedAt: new Date(),
+      // Stamp the deadline, not "now", so durations reflect the timer.
+      submittedAt: attempt.expiresAt ?? new Date(),
+      results: quiz.questions.map((q) => ({
+        questionId: q.id,
+        correct: false,
+        points: 0,
+      })),
       scorePercent: 0,
       passed: false,
       earnedPoints: 0,
