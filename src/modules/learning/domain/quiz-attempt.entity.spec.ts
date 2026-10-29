@@ -2,7 +2,9 @@ import { QuestionType, QuizQuestion } from '../../catalog';
 import {
   gradeQuiz,
   isPastDeadline,
+  remainingSeconds,
   shuffle,
+  shuffleQuestionOrder,
   TIMER_GRACE_SECONDS,
 } from './quiz-attempt.entity';
 
@@ -55,5 +57,29 @@ describe('quiz grading', () => {
     const shuffled = shuffle(ids, () => 0);
     expect([...shuffled].sort()).toEqual(ids);
     expect(shuffled).not.toEqual(ids);
+  });
+
+  it('never repeats the previous attempt order', () => {
+    const ids = ['a', 'b'];
+    for (let i = 0; i < 20; i++) {
+      expect(shuffleQuestionOrder(ids, ['a', 'b'])).toEqual(['b', 'a']);
+      expect(shuffleQuestionOrder(ids, ['b', 'a'])).toEqual(['a', 'b']);
+    }
+    const five = ['a', 'b', 'c', 'd', 'e'];
+    const previous = shuffle(five, () => 0);
+    const next = shuffleQuestionOrder(five, previous, () => 0);
+    expect(next).not.toEqual(previous);
+    expect([...next].sort()).toEqual(five);
+    expect(shuffleQuestionOrder(['a'], ['a'])).toEqual(['a']);
+  });
+
+  it('reports remaining timer seconds', () => {
+    const now = new Date('2026-10-15T10:00:00Z');
+    const expiresAt = new Date(now.getTime() + 90_500);
+    expect(remainingSeconds({ expiresAt }, now)).toBe(91);
+    expect(
+      remainingSeconds({ expiresAt }, new Date(now.getTime() + 999_000)),
+    ).toBe(0);
+    expect(remainingSeconds({ expiresAt: undefined }, now)).toBeNull();
   });
 });

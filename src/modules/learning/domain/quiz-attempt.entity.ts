@@ -89,3 +89,33 @@ export function shuffle<T>(
   }
   return copy;
 }
+
+/**
+ * Shuffles question ids so a fresh attempt never repeats the previous
+ * attempt's order (with 2-3 questions a plain shuffle repeats it often).
+ */
+export function shuffleQuestionOrder(
+  ids: string[],
+  previous: string[] = [],
+  random: () => number = Math.random,
+): string[] {
+  const order = shuffle(ids, random);
+  const same =
+    order.length > 1 &&
+    order.length === previous.length &&
+    order.every((id, i) => id === previous[i]);
+  // Rotating a sequence of 2+ distinct ids always changes it.
+  return same ? [...order.slice(1), order[0]] : order;
+}
+
+/** Seconds left on the timer (grace excluded), or null if untimed. */
+export function remainingSeconds(
+  attempt: Pick<QuizAttempt, 'expiresAt'>,
+  now = new Date(),
+): number | null {
+  if (!attempt.expiresAt) return null;
+  return Math.max(
+    0,
+    Math.ceil((attempt.expiresAt.getTime() - now.getTime()) / 1000),
+  );
+}

@@ -9,6 +9,8 @@ export interface QuizAttemptRepository {
   countFinished(userId: string, quizId: string): Promise<number>;
   /** Atomically finishes an in-progress attempt; null if already finished. */
   finish(id: string, patch: Partial<QuizAttempt>): Promise<QuizAttempt | null>;
+  /** In-progress attempts whose timer ran out before `before`. */
+  findOverdue(before: Date, limit: number): Promise<QuizAttempt[]>;
   list(
     filter: { userIds: string[]; quizId?: string; courseId?: string },
     limit: number,
