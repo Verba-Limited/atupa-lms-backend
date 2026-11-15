@@ -53,9 +53,18 @@ export class SchoolMongoRepository
     });
   }
 
-  list(filter: { q?: string; isActive?: boolean }, page: PageRequest) {
+  list(
+    filter: { q?: string; isActive?: boolean; verificationStatus?: string },
+    page: PageRequest,
+  ) {
     const query: Record<string, unknown> = {};
     if (filter.isActive !== undefined) query.isActive = filter.isActive;
+    if (filter.verificationStatus) {
+      query['verification.status'] =
+        filter.verificationStatus === 'verified'
+          ? { $in: ['verified', null] }
+          : filter.verificationStatus;
+    }
     if (filter.q) {
       const p = containsPattern(filter.q);
       query.$or = [{ name: p }, { region: p }, { email: p }];

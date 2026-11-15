@@ -10,6 +10,10 @@ export enum NotificationType {
   ANNOUNCEMENT = 'announcement',
   REMINDER = 'reminder',
   SUBSCRIPTION = 'subscription',
+  VERIFICATION = 'verification',
+  CONTENT_REVIEW = 'content_review',
+  SAFETY = 'safety',
+  ADMIN_ALERT = 'admin_alert',
 }
 
 export interface InAppNotification {

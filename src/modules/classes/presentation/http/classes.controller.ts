@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   HttpCode,
+  Ip,
   Patch,
   Post,
   Query,
@@ -31,6 +32,7 @@ import {
 const MANAGERS = [
   UserRole.TEACHER,
   UserRole.SCHOOL_ADMIN,
+  UserRole.SUPPORT_ADMIN,
   UserRole.SUPER_ADMIN,
 ];
 
@@ -52,7 +54,7 @@ export class ClassesController {
     return ok(
       await this.classes.list(
         actor,
-        { schoolId: query.schoolId },
+        { schoolId: query.schoolId, teacherUserId: query.teacherUserId },
         pageOf(query),
       ),
     );
@@ -62,8 +64,15 @@ export class ClassesController {
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @HttpCode(200)
   @Post('join')
-  async join(@CurrentUser() actor: Actor, @Body() dto: JoinClassDto) {
-    return ok(await this.classes.joinWithCode(actor, dto.code), 'Joined class');
+  async join(
+    @CurrentUser() actor: Actor,
+    @Body() dto: JoinClassDto,
+    @Ip() ip: string,
+  ) {
+    return ok(
+      await this.classes.joinWithCode(actor, dto.code, ip),
+      'Joined class',
+    );
   }
 
   @Get(':classId')
@@ -91,7 +100,7 @@ export class ClassesController {
     return ok(null, 'Class archived');
   }
 
-  @Roles(UserRole.SCHOOL_ADMIN, UserRole.SUPER_ADMIN)
+  @Roles(UserRole.SCHOOL_ADMIN, UserRole.SUPPORT_ADMIN, UserRole.SUPER_ADMIN)
   @Patch(':classId/teacher')
   async setTeacher(
     @CurrentUser() actor: Actor,

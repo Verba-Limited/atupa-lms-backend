@@ -2,7 +2,11 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { Actor } from '../../../shared/application/actor';
 import type { EventBus } from '../../../shared/application/event-bus.port';
 import { EVENT_BUS } from '../../../shared/application/event-bus.port';
-import { ClassAnnouncementPosted } from '../../../shared/contracts/events';
+import {
+  ClassAnnouncementPosted,
+  LearnerFacingTextSaved,
+  LearnersJoinedClass,
+} from '../../../shared/contracts/events';
 import {
   ConflictError,
   ForbiddenError,
@@ -11,8 +15,16 @@ import {
 } from '../../../shared/domain/errors';
 import { Page, PageRequest } from '../../../shared/domain/pagination';
 import { randomCode } from '../../../shared/domain/random-code';
-import { UserRole } from '../../../shared/domain/user-role';
-import { CatalogQueryService } from '../../catalog';
+import {
+  STAFF_ROLES,
+  SUPPORT_ROLES,
+  UserRole,
+} from '../../../shared/domain/user-role';
+import {
+  CatalogQueryService,
+  type Course,
+  CourseVisibility,
+} from '../../catalog';
 import { PublicUser, UsersService } from '../../identity';
 import {
   assertCanManageClass,
@@ -59,17 +71,24 @@ export class ClassesService {
         teacherUserId = input.teacherUserId;
         break;
       case UserRole.SUPER_ADMIN:
-        if (!input.schoolId || !input.teacherUserId) {
-          throw new ValidationError('schoolId and teacherUserId are required');
+      case UserRole.SUPPORT_ADMIN:
+        // ATUPA staff create classes for any teacher (M-12); schoolId is
+        // optional because most teachers work independently.
+        if (!input.teacherUserId) {
+          throw new ValidationError('teacherUserId is required');
         }
-        schoolId = input.schoolId;
+        schoolId = input.schoolId ?? null;
         teacherUserId = input.teacherUserId;
         break;
       default:
         throw new ForbiddenError('You cannot create classes');
     }
     if (teacherUserId !== actor.userId) {
-      await this.assertTeacherInSchool(teacherUserId, schoolId);
+      await this.assertTeacherInSchool(
+        teacherUserId,
+        schoolId,
+        SUPPORT_ROLES.includes(actor.role) && !schoolId,
+      );
     }
     return this.classes.create({
       schoolId,
@@ -86,7 +105,7 @@ export class ClassesService {
 
   list(
     actor: Actor,
-    filter: { schoolId?: string },
+    filter: { schoolId?: string; teacherUserId?: string },
     page: PageRequest,
   ): Promise<Page<Classroom>> {
     const scoped: ClassroomFilter = {};
@@ -108,7 +127,9 @@ export class ClassesService {
         scoped.studentUserId = actor.userId;
         break;
       case UserRole.SUPER_ADMIN:
+      case UserRole.SUPPORT_ADMIN:
         scoped.schoolId = filter.schoolId;
+        scoped.teacherUserId = filter.teacherUserId;
         break;
       default:
         throw new ForbiddenError('You cannot list classes');
@@ -152,20 +173,23 @@ export class ClassesService {
     const classroom = await this.require(classId);
     if (
       actor.role !== UserRole.SCHOOL_ADMIN &&
-      actor.role !== UserRole.SUPER_ADMIN
+      !SUPPORT_ROLES.includes(actor.role)
     ) {
-      throw new ForbiddenError(
-        'Only school administrators can assign teachers',
-      );
+      throw new ForbiddenError('Only administrators can assign teachers');
     }
     assertCanManageClass(actor, classroom);
-    await this.assertTeacherInSchool(teacherUserId, classroom.schoolId);
+    await this.assertTeacherInSchool(
+      teacherUserId,
+      classroom.schoolId,
+      SUPPORT_ROLES.includes(actor.role) && !classroom.schoolId,
+    );
     return this.classes.update(classId, { teacherUserId });
   }
 
   /**
-   * Adds school members to a class. Learners outside the school (or for an
-   * independent class) must join with the class code themselves.
+   * Adds learners to a class. Teachers add school members only; learners
+   * outside the school (or for an independent class) join with the class
+   * code themselves. ATUPA support staff may add any learner (M-10).
    */
   async addStudents(
     actor: Actor,
@@ -174,7 +198,8 @@ export class ClassesService {
   ): Promise<Classroom> {
     const classroom = await this.require(classId);
     assertCanManageClass(actor, classroom);
-    if (!classroom.schoolId) {
+    const staff = SUPPORT_ROLES.includes(actor.role);
+    if (!classroom.schoolId && !staff) {
       throw new ForbiddenError(
         'Learners join independent classes with the class code',
       );
@@ -186,15 +211,29 @@ export class ClassesService {
           (s) =>
             s.id === id &&
             s.role === UserRole.LEARNER &&
-            s.schoolId === classroom.schoolId,
+            (!classroom.schoolId || s.schoolId === classroom.schoolId),
         ),
     );
     if (invalid.length) {
       throw new ValidationError(
-        `These users are not learners in this school: ${invalid.join(', ')}`,
+        classroom.schoolId
+          ? `These users are not learners in this school: ${invalid.join(', ')}`
+          : `These users are not learners: ${invalid.join(', ')}`,
       );
     }
-    return (await this.classes.addStudents(classId, studentIds)) as Classroom;
+    const updated = (await this.classes.addStudents(
+      classId,
+      studentIds,
+    )) as Classroom;
+    const added = studentIds.filter(
+      (id) => !classroom.studentUserIds.includes(id),
+    );
+    if (added.length) {
+      await this.events.publish(
+        new LearnersJoinedClass(classId, classroom.teacherUserId, added),
+      );
+    }
+    return updated;
   }
 
   async removeStudent(
@@ -206,7 +245,11 @@ export class ClassesService {
     return (await this.classes.removeStudent(classId, studentId)) as Classroom;
   }
 
-  async joinWithCode(actor: Actor, code: string): Promise<Classroom> {
+  async joinWithCode(
+    actor: Actor,
+    code: string,
+    ip?: string,
+  ): Promise<Classroom> {
     if (actor.role !== UserRole.LEARNER)
       throw new ForbiddenError('Only learners join classes');
     const classroom = await this.classes.findByJoinCode(
@@ -220,18 +263,38 @@ export class ClassesService {
     if (classroom.studentUserIds.includes(actor.userId)) {
       throw new ConflictError('You are already in this class');
     }
-    return (await this.classes.addStudents(classroom.id, [
+    const updated = (await this.classes.addStudents(classroom.id, [
       actor.userId,
     ])) as Classroom;
+    await this.events.publish(
+      new LearnersJoinedClass(
+        classroom.id,
+        classroom.teacherUserId,
+        [actor.userId],
+        ip,
+      ),
+    );
+    return updated;
   }
 
   async leave(actor: Actor, classId: string): Promise<void> {
     await this.classes.removeStudent(classId, actor.userId);
   }
 
+  /**
+   * A class can use Public courses, the class teacher's own courses and
+   * courses shared with its school. Another teacher's Private course stays
+   * private.
+   */
   async assignCourse(actor: Actor, classId: string, courseId: string) {
-    assertCanManageClass(actor, await this.require(classId));
-    await this.catalog.getPublishedCourse(courseId);
+    const classroom = await this.require(classId);
+    assertCanManageClass(actor, classroom);
+    const course = await this.catalog.getPublishedCourse(courseId);
+    if (!canUseCourseInClass(actor, classroom, course)) {
+      throw new ForbiddenError(
+        "This is another teacher's private course. Ask them to share it.",
+      );
+    }
     return this.classes.addCourse(classId, courseId);
   }
 
@@ -248,6 +311,17 @@ export class ClassesService {
   async announce(actor: Actor, classId: string, title: string, body: string) {
     const classroom = await this.require(classId);
     assertCanManageClass(actor, classroom);
+    if (!STAFF_ROLES.includes(actor.role)) {
+      await this.events.publish(
+        new LearnerFacingTextSaved(
+          actor.userId,
+          actor.role,
+          'announcement',
+          classroom.id,
+          `${title}\n${body}`,
+        ),
+      );
+    }
     await this.events.publish(
       new ClassAnnouncementPosted(
         classroom.id,
@@ -275,6 +349,10 @@ export class ClassesService {
     return classroom;
   }
 
+  findById(classId: string): Promise<Classroom | null> {
+    return this.classes.findById(classId);
+  }
+
   listForTeacher(teacherUserId: string) {
     return this.classes.listAll({ teacherUserId });
   }
@@ -285,6 +363,21 @@ export class ClassesService {
 
   listForStudent(studentUserId: string) {
     return this.classes.listAll({ studentUserId });
+  }
+
+  /** Whether a learner is in any class that has this course assigned. */
+  async isCourseAssignedToLearner(
+    learnerId: string,
+    courseId: string,
+  ): Promise<boolean> {
+    return (
+      (
+        await this.classes.listAll({
+          studentUserId: learnerId,
+          assignedCourseId: courseId,
+        })
+      ).length > 0
+    );
   }
 
   async isTeacherOfStudent(
@@ -317,16 +410,31 @@ export class ClassesService {
   private async assertTeacherInSchool(
     teacherUserId: string,
     schoolId: string | null,
+    anySchool = false,
   ) {
     const teacher: PublicUser | null = await this.users.findById(teacherUserId);
     if (
       !teacher ||
       teacher.role !== UserRole.TEACHER ||
-      (teacher.schoolId ?? null) !== schoolId
+      (!anySchool && (teacher.schoolId ?? null) !== schoolId)
     ) {
       throw new ValidationError(
         'teacherUserId must be a teacher in the same school',
       );
     }
   }
+}
+
+function canUseCourseInClass(
+  actor: Actor,
+  classroom: Classroom,
+  course: Course,
+): boolean {
+  return (
+    STAFF_ROLES.includes(actor.role) ||
+    course.visibility === CourseVisibility.PUBLIC ||
+    course.createdByUserId === classroom.teacherUserId ||
+    course.createdByUserId === actor.userId ||
+    (!!course.schoolId && course.schoolId === classroom.schoolId)
+  );
 }

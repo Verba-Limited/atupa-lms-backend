@@ -5,7 +5,14 @@ import {
   ProficiencyLevel,
 } from '../../../../shared/domain/enums';
 import { ActivityType } from '../../domain/activity.entity';
-import { AgeGroup, CourseType } from '../../domain/course.entity';
+import {
+  AgeGroup,
+  CourseOwnerType,
+  CourseType,
+  CourseVisibility,
+  PublicRequest,
+  ReviewRecord,
+} from '../../domain/course.entity';
 import { LessonBlockType } from '../../domain/lesson.entity';
 import { QuestionType } from '../../domain/quiz.entity';
 
@@ -78,6 +85,28 @@ export class CourseRecord {
 
   @Prop({ type: String, default: null, index: true })
   schoolId?: string | null;
+
+  @Prop({
+    enum: CourseVisibility,
+    type: String,
+    default: CourseVisibility.PRIVATE,
+    index: true,
+  })
+  visibility!: CourseVisibility;
+
+  @Prop({
+    enum: CourseOwnerType,
+    type: String,
+    default: CourseOwnerType.TEACHER,
+    index: true,
+  })
+  ownerType!: CourseOwnerType;
+
+  @Prop({ type: MongooseSchema.Types.Mixed, default: null })
+  publicRequest?: PublicRequest | null;
+
+  @Prop({ type: MongooseSchema.Types.Mixed, default: null })
+  review?: ReviewRecord | null;
 
   @Prop({ type: Date, default: null })
   publishedAt?: Date | null;
@@ -166,6 +195,9 @@ export class LessonRecord {
     index: true,
   })
   status!: ContentStatus;
+
+  @Prop({ type: MongooseSchema.Types.Mixed, default: null })
+  review?: ReviewRecord | null;
 
   @Prop({ default: 0 })
   order!: number;

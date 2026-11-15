@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { MongooseModule } from '@nestjs/mongoose';
 import { PassportModule } from '@nestjs/passport';
+import { MediaModule } from '../media';
 import { AuthService } from './application/auth.service';
 import { PASSWORD_HASHER } from './application/ports/password-hasher.port';
 import { TOKEN_ISSUER } from './application/ports/token-issuer.port';
@@ -24,6 +25,7 @@ import { UsersController } from './presentation/http/users.controller';
   imports: [
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.register({}),
+    MediaModule,
     MongooseModule.forFeature([{ name: UserRecord.name, schema: UserSchema }]),
   ],
   controllers: [AuthController, UsersController, AdminUsersController],

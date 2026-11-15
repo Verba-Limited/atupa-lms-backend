@@ -25,6 +25,7 @@ import {
   LessonDto,
   ModuleDto,
   QuizDto,
+  SetVisibilityDto,
   UpdateActivityDto,
   UpdateCourseDto,
   UpdateLessonDto,
@@ -88,15 +89,46 @@ export class AuthoringController {
     );
   }
 
+  /**
+   * Publishes the course, or submits it for super admin review (ATUPA
+   * content, Public teacher courses). `submittedForReview` says which.
+   */
   @HttpCode(200)
   @Post('courses/:courseId/publish')
   async publishCourse(
     @CurrentUser() actor: Actor,
     @IdParam('courseId') id: string,
   ) {
+    const course = await this.authoring.publishCourse(actor, id);
     return ok(
-      await this.authoring.publishCourse(actor, id),
-      'Course published',
+      course,
+      course.submittedForReview
+        ? 'Course submitted for review'
+        : 'Course published',
+    );
+  }
+
+  /**
+   * Private (default) or School apply at once. Public is sent to a super
+   * admin for approval and needs a verified teacher.
+   */
+  @HttpCode(200)
+  @Patch('courses/:courseId/visibility')
+  async setVisibility(
+    @CurrentUser() actor: Actor,
+    @IdParam('courseId') id: string,
+    @Body() dto: SetVisibilityDto,
+  ) {
+    const course = await this.authoring.setVisibility(
+      actor,
+      id,
+      dto.visibility,
+    );
+    return ok(
+      course,
+      course.requestedPublic
+        ? 'Request sent. The course becomes Public once ATUPA approves it.'
+        : 'Visibility updated',
     );
   }
 
@@ -186,9 +218,16 @@ export class AuthoringController {
     @CurrentUser() actor: Actor,
     @IdParam('lessonId') id: string,
   ) {
+    const lesson = await this.authoring.setLessonStatus(
+      actor,
+      id,
+      ContentStatus.PUBLISHED,
+    );
     return ok(
-      await this.authoring.setLessonStatus(actor, id, ContentStatus.PUBLISHED),
-      'Lesson published',
+      lesson,
+      lesson.submittedForReview
+        ? 'Lesson submitted for review'
+        : 'Lesson published',
     );
   }
 

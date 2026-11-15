@@ -3,12 +3,13 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Page, PageRequest } from '../../../../shared/domain/pagination';
 import { containsPattern } from '../../../../shared/domain/text';
+import { UserRole } from '../../../../shared/domain/user-role';
 import { MongoCrudRepository } from '../../../../shared/infrastructure/mongo/mongo-crud.repository';
 import type {
   UserFilter,
   UserRepository,
 } from '../../application/ports/user.repository.port';
-import { User } from '../../domain/user.entity';
+import { User, VerificationStatus } from '../../domain/user.entity';
 import { UserRecord } from './user.schema';
 
 @Injectable()
@@ -78,6 +79,13 @@ export class UserMongoRepository
     if (filter.role) query.role = filter.role;
     if (filter.schoolId) query.schoolId = filter.schoolId;
     if (filter.isActive !== undefined) query.isActive = filter.isActive;
+    if (filter.verificationStatus === VerificationStatus.UNVERIFIED) {
+      // Teachers created before verification existed have no stored status.
+      query.verificationStatus = { $in: [VerificationStatus.UNVERIFIED, null] };
+      query.role = filter.role ?? UserRole.TEACHER;
+    } else if (filter.verificationStatus) {
+      query.verificationStatus = filter.verificationStatus;
+    }
     if (filter.q) {
       const pattern = containsPattern(filter.q);
       query.$or = [

@@ -40,6 +40,7 @@ export class ProgressController {
     @CurrentUser() actor: Actor,
     @IdParam('courseId') courseId: string,
   ) {
+    await this.progress.assertCanLearnCourse(actor, courseId);
     return ok(await this.progress.enroll(actor.userId, courseId), 'Enrolled');
   }
 
@@ -99,6 +100,7 @@ export class ProgressController {
     @IdParam('lessonId') lessonId: string,
     @Body() dto: LessonPositionDto,
   ) {
+    await this.progress.assertCanLearnLesson(actor, lessonId);
     return ok(
       await this.progress.saveLessonPosition(actor.userId, lessonId, dto),
     );
@@ -110,6 +112,7 @@ export class ProgressController {
     @CurrentUser() actor: Actor,
     @IdParam('lessonId') lessonId: string,
   ) {
+    await this.progress.assertCanLearnLesson(actor, lessonId);
     return ok(
       await this.progress.completeLesson(actor.userId, lessonId),
       'Lesson completed',

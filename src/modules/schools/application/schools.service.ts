@@ -2,7 +2,10 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { Actor } from '../../../shared/application/actor';
 import type { EventBus } from '../../../shared/application/event-bus.port';
 import { EVENT_BUS } from '../../../shared/application/event-bus.port';
-import { SchoolMemberRemoved } from '../../../shared/contracts/events';
+import {
+  SchoolMemberRemoved,
+  VerificationDecided,
+} from '../../../shared/contracts/events';
 import {
   ConflictError,
   ForbiddenError,
@@ -24,6 +27,7 @@ import {
   DEFAULT_SCHOOL_SETTINGS,
   School,
   SchoolSettings,
+  schoolVerificationStatus,
 } from '../domain/school.entity';
 import type { SchoolRepository } from './ports/school.repository.port';
 import { SCHOOL_REPOSITORY } from './ports/school.repository.port';
@@ -79,7 +83,8 @@ export class SchoolsService {
       throw new ConflictError('A school with this name already exists');
     }
     const { admin, ...profile } = input;
-    const school = await this.createSchool(profile);
+    // Self-registered schools wait for ATUPA to check their documents.
+    const school = await this.createSchool(profile, 'unverified');
     try {
       const session = await this.auth.createAccount({
         ...admin,
@@ -115,7 +120,10 @@ export class SchoolsService {
     return school;
   }
 
-  list(filter: { q?: string; isActive?: boolean }, page: PageRequest) {
+  list(
+    filter: { q?: string; isActive?: boolean; verificationStatus?: string },
+    page: PageRequest,
+  ) {
     return this.schools.list(filter, page);
   }
 
@@ -257,12 +265,80 @@ export class SchoolsService {
     return this.schools.count();
   }
 
-  private createSchool(input: SchoolProfileInput): Promise<School> {
+  /** The school admin sends a registration certificate for ATUPA to check. */
+  async submitVerification(
+    actor: Actor,
+    schoolId: string,
+    documents: Array<{ mediaId: string; url: string; label: string }>,
+    note?: string,
+  ): Promise<School> {
+    assertCanAdministerSchool(actor, schoolId);
+    const school = await this.require(schoolId);
+    if (schoolVerificationStatus(school) === 'verified') {
+      throw new ConflictError('This school is already verified');
+    }
+    return (await this.schools.update(schoolId, {
+      verification: {
+        status: 'pending',
+        documents,
+        note: note ?? null,
+        submittedAt: new Date(),
+      },
+    })) as School;
+  }
+
+  /** Super admin decision; a rejected school is deactivated. */
+  async decideVerification(
+    actor: Actor,
+    schoolId: string,
+    approve: boolean,
+    reason?: string,
+  ): Promise<School> {
+    const school = await this.require(schoolId);
+    if (!approve && !reason) {
+      throw new ValidationError('Give a reason when rejecting');
+    }
+    const updated = (await this.schools.update(schoolId, {
+      verification: {
+        status: approve ? 'verified' : 'rejected',
+        documents: school.verification?.documents ?? [],
+        note: approve ? (school.verification?.note ?? null) : reason,
+        submittedAt: school.verification?.submittedAt ?? null,
+        decidedAt: new Date(),
+        decidedByUserId: actor.userId,
+      },
+      isActive: approve ? true : false,
+    })) as School;
+    await this.events.publish(
+      new VerificationDecided(
+        'school',
+        schoolId,
+        school.adminUserId,
+        approve,
+        reason,
+      ),
+    );
+    return updated;
+  }
+
+  /** Safety outcome "remove the school": deactivated, data kept. */
+  async suspend(schoolId: string): Promise<School> {
+    await this.require(schoolId);
+    return (await this.schools.update(schoolId, {
+      isActive: false,
+    })) as School;
+  }
+
+  private createSchool(
+    input: SchoolProfileInput,
+    verification: 'unverified' | 'verified' = 'verified',
+  ): Promise<School> {
     return this.schools.create({
       ...input,
       joinCode: randomCode(8),
       settings: { ...DEFAULT_SCHOOL_SETTINGS },
       isActive: true,
+      verification: { status: verification, documents: [] },
     });
   }
 

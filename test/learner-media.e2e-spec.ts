@@ -1,4 +1,10 @@
-import { adminSession, auth, register, Session } from './support/api';
+import {
+  adminSession,
+  auth,
+  register,
+  Session,
+  makeCoursePublic,
+} from './support/api';
 import { createTestApp, TestContext } from './support/test-app';
 
 /** Learners receive playable media wherever lessons use audio, video or images. */
@@ -148,6 +154,8 @@ describe('Learner media playback (e2e)', () => {
       .post(`/api/v1/authoring/courses/${course.body.data.id}/publish`)
       .set(auth(teacher))
       .expect(200);
+    // Teacher courses start Private; make this one Public for any learner.
+    await makeCoursePublic(ctx, teacher, course.body.data.id);
   }, 120_000);
 
   afterAll(() => ctx?.close());

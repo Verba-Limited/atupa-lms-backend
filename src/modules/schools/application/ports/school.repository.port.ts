@@ -8,7 +8,7 @@ export interface SchoolRepository extends CrudPort<School> {
   findByJoinCode(code: string): Promise<School | null>;
   findByName(name: string): Promise<School | null>;
   list(
-    filter: { q?: string; isActive?: boolean },
+    filter: { q?: string; isActive?: boolean; verificationStatus?: string },
     page: PageRequest,
   ): Promise<Page<School>>;
   count(): Promise<number>;

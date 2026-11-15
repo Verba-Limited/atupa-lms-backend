@@ -9,6 +9,7 @@ import { Page, PageRequest } from '../../../shared/domain/pagination';
 import {
   CONTENT_AUTHOR_ROLES,
   PLATFORM_CONTENT_ROLES,
+  SUPPORT_ROLES,
   UserRole,
 } from '../../../shared/domain/user-role';
 import {
@@ -18,6 +19,7 @@ import {
   MediaAsset,
   MediaKind,
   MediaPurpose,
+  PRIVATE_PURPOSES,
 } from '../domain/media-asset.entity';
 import {
   externalPlayback,
@@ -151,6 +153,14 @@ export class MediaService {
     ) {
       throw new ForbiddenError('You cannot view this media record');
     }
+    if (
+      asset.ownerUserId !== actor.userId &&
+      (asset.purpose === MediaPurpose.VERIFICATION ||
+        asset.purpose === MediaPurpose.REPORT) &&
+      !SUPPORT_ROLES.includes(actor.role)
+    ) {
+      throw new ForbiddenError('You cannot view this media record');
+    }
     return asset;
   }
 
@@ -186,6 +196,14 @@ export class MediaService {
     ) {
       throw new ForbiddenError('You cannot view this submission');
     }
+    if (
+      (asset.purpose === MediaPurpose.VERIFICATION ||
+        asset.purpose === MediaPurpose.REPORT) &&
+      asset.ownerUserId !== actor.userId &&
+      !SUPPORT_ROLES.includes(actor.role)
+    ) {
+      throw new ForbiddenError('You cannot view this file');
+    }
     return toPlayback(asset);
   }
 
@@ -205,7 +223,7 @@ export class MediaService {
     const assets = await this.assets.findByUrls(unique);
     for (const asset of assets) {
       if (
-        asset.purpose === MediaPurpose.SUBMISSION &&
+        PRIVATE_PURPOSES.includes(asset.purpose) &&
         !options.includeSubmissions
       ) {
         continue;
@@ -229,6 +247,33 @@ export class MediaService {
   ): Promise<MediaPlayback | null> {
     if (!url) return null;
     return (await this.resolveUrls([url], kindHint)).get(url) ?? null;
+  }
+
+  /**
+   * Checks files a user attaches to their own request (verification
+   * documents, report screenshots): they must exist, be theirs and have
+   * been uploaded for that purpose.
+   */
+  async requireOwnUploads(
+    actor: Actor,
+    ids: string[],
+    purpose: MediaPurpose,
+  ): Promise<MediaAsset[]> {
+    const assets = await this.assets.findByIds(ids);
+    const byId = new Map(assets.map((a) => [a.id, a]));
+    return ids.map((id) => {
+      const asset = byId.get(id);
+      if (
+        !asset ||
+        asset.ownerUserId !== actor.userId ||
+        asset.purpose !== purpose
+      ) {
+        throw new ValidationError(
+          `Media ${id} is not one of your ${purpose} uploads`,
+        );
+      }
+      return asset;
+    });
   }
 
   /**
@@ -302,6 +347,24 @@ export function assertPurposeAllowed(
   }
   if (purpose === MediaPurpose.PROFILE && kind !== MediaKind.IMAGE) {
     throw new ValidationError('Profile uploads must be images');
+  }
+  if (purpose === MediaPurpose.VERIFICATION) {
+    if (
+      actor.role !== UserRole.TEACHER &&
+      actor.role !== UserRole.SCHOOL_ADMIN
+    ) {
+      throw new ForbiddenError(
+        'Only teachers and schools upload verification documents',
+      );
+    }
+    if (kind !== MediaKind.IMAGE) {
+      throw new ValidationError(
+        'Upload verification documents as photos or scans (images)',
+      );
+    }
+  }
+  if (purpose === MediaPurpose.REPORT && kind !== MediaKind.IMAGE) {
+    throw new ValidationError('Report attachments must be screenshots');
   }
   if (purpose === MediaPurpose.SUBMISSION) {
     if (actor.role !== UserRole.LEARNER) {

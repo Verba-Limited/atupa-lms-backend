@@ -92,3 +92,34 @@ export async function findCourse(
     isPremium: boolean;
   };
 }
+
+/**
+ * Makes a teacher's published course Public the way it happens in the app:
+ * an admin verifies the teacher, the teacher asks for Public, the admin
+ * approves the request.
+ */
+export async function makeCoursePublic(
+  ctx: TestContext,
+  teacher: Session,
+  courseId: string,
+) {
+  const admin = await adminSession(ctx);
+  await ctx
+    .http()
+    .post(`/api/v1/admin/users/${teacher.userId}/verification`)
+    .set(auth(admin))
+    .send({ decision: 'approve' })
+    .expect(200);
+  await ctx
+    .http()
+    .patch(`/api/v1/authoring/courses/${courseId}/visibility`)
+    .set(auth(teacher))
+    .send({ visibility: 'public' })
+    .expect(200);
+  await ctx
+    .http()
+    .post(`/api/v1/admin/reviews/courses/${courseId}/visibility`)
+    .set(auth(admin))
+    .send({ decision: 'approve' })
+    .expect(200);
+}

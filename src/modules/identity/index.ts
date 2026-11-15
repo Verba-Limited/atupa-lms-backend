@@ -4,3 +4,8 @@ export { UsersService } from './application/users.service';
 export { AuthService } from './application/auth.service';
 export type { AuthSession } from './application/auth.service';
 export type { PublicUser } from './domain/user.entity';
+export {
+  isVerifiedTeacher,
+  VerificationStatus,
+  verificationStatusOf,
+} from './domain/user.entity';

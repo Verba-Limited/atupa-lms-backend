@@ -9,7 +9,9 @@ import {
   AgeGroup,
   Course,
   CourseModule,
+  CourseOwnerType,
   CourseType,
+  CourseVisibility,
 } from '../../domain/course.entity';
 import { Language } from '../../domain/language.entity';
 import { Lesson } from '../../domain/lesson.entity';
@@ -37,6 +39,10 @@ export interface CourseFilter {
   status?: ContentStatus;
   createdByUserId?: string;
   schoolId?: string;
+  visibility?: CourseVisibility;
+  ownerType?: CourseOwnerType;
+  /** Courses with a pending request to become Public. */
+  publicRequestPending?: boolean;
   q?: string;
   excludeIds?: string[];
 }

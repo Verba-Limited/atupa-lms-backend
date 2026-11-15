@@ -1,4 +1,5 @@
 import { ContentStatus } from '../../../shared/domain/enums';
+import type { ReviewRecord } from './course.entity';
 
 export enum LessonBlockType {
   TEXT = 'text',
@@ -43,6 +44,7 @@ export interface Lesson {
   gamecardCodes: string[];
   estimatedMinutes?: number;
   status: ContentStatus;
+  review?: ReviewRecord | null;
   order: number;
   createdAt?: Date;
   updatedAt?: Date;

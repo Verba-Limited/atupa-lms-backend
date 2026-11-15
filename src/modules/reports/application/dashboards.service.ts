@@ -279,7 +279,15 @@ export class DashboardsService {
         : 0,
       engagement30d: {
         lessonsCompleted: events30[LearningEventType.LESSON_COMPLETED] ?? 0,
+        quizzesAttempted: events30[LearningEventType.QUIZ_ATTEMPTED] ?? 0,
         quizzesPassed: events30[LearningEventType.QUIZ_PASSED] ?? 0,
+        quizPassRate: events30[LearningEventType.QUIZ_ATTEMPTED]
+          ? Math.round(
+              ((events30[LearningEventType.QUIZ_PASSED] ?? 0) /
+                events30[LearningEventType.QUIZ_ATTEMPTED]) *
+                100,
+            )
+          : 0,
         gamesPlayed: events30[LearningEventType.GAME_PLAYED] ?? 0,
         gamecardScans: scans30,
       },

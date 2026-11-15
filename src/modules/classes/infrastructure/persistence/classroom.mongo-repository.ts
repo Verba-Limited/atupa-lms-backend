@@ -107,6 +107,8 @@ function toQuery(filter: ClassroomFilter): Record<string, unknown> {
   if (filter.schoolId) query.schoolId = filter.schoolId;
   if (filter.teacherUserId) query.teacherUserId = filter.teacherUserId;
   if (filter.studentUserId) query.studentUserIds = filter.studentUserId;
+  if (filter.assignedCourseId)
+    query.assignedCourseIds = filter.assignedCourseId;
   if (!filter.includeArchived) query.isArchived = { $ne: true };
   return query;
 }

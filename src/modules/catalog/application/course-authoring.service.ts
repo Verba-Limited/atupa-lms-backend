@@ -3,10 +3,15 @@ import { randomUUID } from 'crypto';
 import type { Actor } from '../../../shared/application/actor';
 import type { EventBus } from '../../../shared/application/event-bus.port';
 import { EVENT_BUS } from '../../../shared/application/event-bus.port';
-import { CoursePublished } from '../../../shared/contracts/events';
+import {
+  CoursePublished,
+  CourseVisibilityRequested,
+  LearnerFacingTextSaved,
+} from '../../../shared/contracts/events';
 import { ContentStatus, ProficiencyLevel } from '../../../shared/domain/enums';
 import {
   ConflictError,
+  ForbiddenError,
   NotFoundError,
   ValidationError,
 } from '../../../shared/domain/errors';
@@ -24,8 +29,12 @@ import {
   AgeGroup,
   Course,
   CourseModule,
+  CourseOwnerType,
   CourseType,
+  CourseVisibility,
 } from '../domain/course.entity';
+import { requiresReview } from '../domain/review.policy';
+import { isVerifiedTeacher, UsersService } from '../../identity';
 import { MediaKind, MediaService } from '../../media';
 import { Lesson, LessonBlock, LessonBlockType } from '../domain/lesson.entity';
 
@@ -148,6 +157,7 @@ export class CourseAuthoringService {
     @Inject(QUIZ_REPOSITORY) private readonly quizzes: QuizRepository,
     @Inject(EVENT_BUS) private readonly events: EventBus,
     private readonly media: MediaService,
+    private readonly users: UsersService,
   ) {}
 
   // ---- Courses --------------------------------------------------------------
@@ -172,7 +182,7 @@ export class CourseAuthoringService {
     assertContentAuthor(actor);
     await this.assertLanguage(input.languageCode);
     const isPlatform = PLATFORM_CONTENT_ROLES.includes(actor.role);
-    return this.courses.create({
+    const course = await this.courses.create({
       ...input,
       languageCode: input.languageCode.toLowerCase(),
       courseType: input.courseType ?? CourseType.LANGUAGE,
@@ -182,8 +192,24 @@ export class CourseAuthoringService {
       status: ContentStatus.DRAFT,
       createdByUserId: actor.userId,
       schoolId: isPlatform ? null : (actor.schoolId ?? null),
+      // ATUPA content is for everyone; teacher courses start Private (M-25).
+      ownerType: isPlatform
+        ? CourseOwnerType.ATUPA
+        : actor.role === UserRole.SCHOOL_ADMIN
+          ? CourseOwnerType.SCHOOL
+          : CourseOwnerType.TEACHER,
+      visibility: isPlatform
+        ? CourseVisibility.PUBLIC
+        : CourseVisibility.PRIVATE,
+      publicRequest: null,
+      review: null,
       publishedAt: null,
     });
+    await this.checkText(actor, 'course', course.id, [
+      course.title,
+      course.description,
+    ]);
+    return course;
   }
 
   async updateCourse(
@@ -193,16 +219,56 @@ export class CourseAuthoringService {
   ): Promise<Course> {
     await this.requireManagedCourse(actor, courseId);
     if (input.languageCode) await this.assertLanguage(input.languageCode);
-    return (await this.courses.update(courseId, {
+    const updated = (await this.courses.update(courseId, {
       ...input,
       ...(input.languageCode
         ? { languageCode: input.languageCode.toLowerCase() }
         : {}),
     })) as Course;
+    await this.checkText(actor, 'course', courseId, [
+      input.title,
+      input.description,
+    ]);
+    return updated;
   }
 
-  async publishCourse(actor: Actor, courseId: string): Promise<Course> {
+  /**
+   * Publishes a course, or sends it to a super admin for review when the
+   * actor may not publish it alone (ATUPA content, Public teacher courses).
+   */
+  async publishCourse(
+    actor: Actor,
+    courseId: string,
+  ): Promise<Course & { submittedForReview: boolean }> {
     const course = await this.requireManagedCourse(actor, courseId);
+    if (requiresReview(actor, course)) {
+      const ready = await this.lessons.list({ courseId }, 50);
+      if (
+        !ready.some(
+          (l) =>
+            l.status === ContentStatus.PUBLISHED ||
+            l.status === ContentStatus.IN_REVIEW,
+        )
+      ) {
+        throw new ValidationError(
+          'Publish at least one lesson before submitting the course',
+        );
+      }
+      if (course.status === ContentStatus.PUBLISHED) {
+        return { ...course, submittedForReview: false };
+      }
+      const submitted = (await this.courses.update(courseId, {
+        status: ContentStatus.IN_REVIEW,
+        review: { submittedAt: new Date(), submittedByUserId: actor.userId },
+      })) as Course;
+      return { ...submitted, submittedForReview: true };
+    }
+    return { ...(await this.goLive(course)), submittedForReview: false };
+  }
+
+  /** Makes a course live. Used directly and when a reviewer approves it. */
+  async goLive(course: Course, review?: Course['review']): Promise<Course> {
+    const courseId = course.id;
     const publishedLessons = await this.lessons.list(
       { courseId, status: ContentStatus.PUBLISHED },
       1,
@@ -216,13 +282,72 @@ export class CourseAuthoringService {
     const updated = (await this.courses.update(courseId, {
       status: ContentStatus.PUBLISHED,
       publishedAt: course.publishedAt ?? new Date(),
+      ...(review ? { review } : {}),
     })) as Course;
-    if (firstPublish) {
+    if (firstPublish && updated.visibility === CourseVisibility.PUBLIC) {
       await this.events.publish(
         new CoursePublished(updated.id, updated.title, updated.languageCode),
       );
     }
     return updated;
+  }
+
+  /**
+   * Teachers choose who can find a course (M-25). Private and School apply
+   * at once; Public needs a verified teacher and a super admin's approval.
+   * Super admins set any visibility directly.
+   */
+  async setVisibility(
+    actor: Actor,
+    courseId: string,
+    visibility: CourseVisibility,
+  ): Promise<Course & { requestedPublic: boolean }> {
+    const course = await this.requireManagedCourse(actor, courseId);
+    if (course.ownerType === CourseOwnerType.ATUPA) {
+      if (visibility !== CourseVisibility.PUBLIC) {
+        throw new ValidationError(
+          'ATUPA courses are always Public. Unpublish the course to hide it.',
+        );
+      }
+      return { ...course, requestedPublic: false };
+    }
+    if (visibility === CourseVisibility.SCHOOL && !course.schoolId) {
+      throw new ValidationError(
+        'Join a school first to share a course with your school',
+      );
+    }
+    if (
+      visibility !== CourseVisibility.PUBLIC ||
+      actor.role === UserRole.SUPER_ADMIN
+    ) {
+      const updated = (await this.courses.update(courseId, {
+        visibility,
+        publicRequest: null,
+      })) as Course;
+      return { ...updated, requestedPublic: false };
+    }
+    if (course.visibility === CourseVisibility.PUBLIC) {
+      return { ...course, requestedPublic: false };
+    }
+    if (actor.role === UserRole.TEACHER) {
+      const teacher = await this.users.getById(actor.userId);
+      if (!isVerifiedTeacher(teacher)) {
+        throw new ForbiddenError(
+          'Only verified teachers can make a course Public. Submit your documents for verification first.',
+        );
+      }
+    }
+    const updated = (await this.courses.update(courseId, {
+      publicRequest: {
+        status: 'pending',
+        requestedAt: new Date(),
+        requestedByUserId: actor.userId,
+      },
+    })) as Course;
+    await this.events.publish(
+      new CourseVisibilityRequested(courseId, course.title, actor.userId),
+    );
+    return { ...updated, requestedPublic: true };
   }
 
   async unpublishCourse(actor: Actor, courseId: string): Promise<Course> {
@@ -322,7 +447,7 @@ export class CourseAuthoringService {
     const order =
       input.order ?? (await this.lessons.list({ moduleId })).length + 1;
     if (input.blocks) input.blocks = await this.attachMedia(input.blocks);
-    return this.lessons.create({
+    const lesson = await this.lessons.create({
       blocks: [],
       vocabulary: [],
       vocabularyIds: [],
@@ -335,6 +460,8 @@ export class CourseAuthoringService {
       order,
       status: ContentStatus.DRAFT,
     });
+    await this.checkText(actor, 'lesson', lesson.id, lessonText(input));
+    return lesson;
   }
 
   async updateLesson(
@@ -344,7 +471,9 @@ export class CourseAuthoringService {
   ) {
     await this.requireManagedLesson(actor, lessonId);
     if (input.blocks) input.blocks = await this.attachMedia(input.blocks);
-    return this.lessons.update(lessonId, input);
+    const updated = await this.lessons.update(lessonId, input);
+    await this.checkText(actor, 'lesson', lessonId, lessonText(input));
+    return updated;
   }
 
   /**
@@ -368,9 +497,26 @@ export class CourseAuthoringService {
     );
   }
 
-  async setLessonStatus(actor: Actor, lessonId: string, status: ContentStatus) {
-    await this.requireManagedLesson(actor, lessonId);
-    return this.lessons.update(lessonId, { status });
+  /** Publishing may go to review first (see publishCourse). */
+  async setLessonStatus(
+    actor: Actor,
+    lessonId: string,
+    status: ContentStatus,
+  ): Promise<Lesson & { submittedForReview: boolean }> {
+    const lesson = await this.requireManagedLesson(actor, lessonId);
+    const course = (await this.courses.findById(lesson.courseId)) as Course;
+    if (status === ContentStatus.PUBLISHED && requiresReview(actor, course)) {
+      if (lesson.status === ContentStatus.PUBLISHED) {
+        return { ...lesson, submittedForReview: false };
+      }
+      const submitted = (await this.lessons.update(lessonId, {
+        status: ContentStatus.IN_REVIEW,
+        review: { submittedAt: new Date(), submittedByUserId: actor.userId },
+      })) as Lesson;
+      return { ...submitted, submittedForReview: true };
+    }
+    const updated = (await this.lessons.update(lessonId, { status })) as Lesson;
+    return { ...updated, submittedForReview: false };
   }
 
   async deleteLesson(actor: Actor, lessonId: string): Promise<void> {
@@ -490,6 +636,30 @@ export class CourseAuthoringService {
     return this.requireManagedQuiz(actor, quizId);
   }
 
+  /**
+   * Teacher-written text is screened for phone numbers, bank details and
+   * payment links (M-29). ATUPA staff content is trusted.
+   */
+  private async checkText(
+    actor: Actor,
+    targetType: 'course' | 'lesson',
+    targetId: string,
+    parts: Array<string | undefined>,
+  ): Promise<void> {
+    if (PLATFORM_CONTENT_ROLES.includes(actor.role)) return;
+    const text = parts.filter(Boolean).join('\n');
+    if (!text) return;
+    await this.events.publish(
+      new LearnerFacingTextSaved(
+        actor.userId,
+        actor.role,
+        targetType,
+        targetId,
+        text,
+      ),
+    );
+  }
+
   // ---- Guards ---------------------------------------------------------------
 
   private async assertLanguage(code: string): Promise<void> {
@@ -556,6 +726,15 @@ export class CourseAuthoringService {
     await this.requireManagedCourse(actor, quiz.courseId);
     return quiz;
   }
+}
+
+function lessonText(input: Partial<LessonInput>): string[] {
+  return [
+    input.title,
+    input.summary,
+    ...(input.blocks ?? []).map((b) => b.content ?? ''),
+    ...(input.culturalNotes ?? []),
+  ].filter((t): t is string => !!t);
 }
 
 /** Gives every question a stable id so answers survive reordering. */

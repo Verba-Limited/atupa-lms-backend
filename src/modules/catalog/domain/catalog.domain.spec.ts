@@ -2,7 +2,14 @@ import { Actor } from '../../../shared/application/actor';
 import { ContentStatus, ProficiencyLevel } from '../../../shared/domain/enums';
 import { UserRole } from '../../../shared/domain/user-role';
 import { canManageCourse } from './content-access.policy';
-import { AgeGroup, Course, CourseType } from './course.entity';
+import {
+  AgeGroup,
+  Course,
+  CourseOwnerType,
+  CourseType,
+  CourseVisibility,
+} from './course.entity';
+import { isDiscoverable, requiresReview } from './review.policy';
 import {
   assertValidQuestions,
   QuestionType,
@@ -21,7 +28,65 @@ const course = (overrides: Partial<Course> = {}): Course => ({
   status: ContentStatus.DRAFT,
   createdByUserId: 't1',
   schoolId: 's1',
+  visibility: CourseVisibility.PRIVATE,
+  ownerType: CourseOwnerType.TEACHER,
   ...overrides,
+});
+
+describe('content review policy', () => {
+  const actor = (role: UserRole): Actor => ({
+    userId: 'u1',
+    email: 'u@x.test',
+    role,
+  });
+
+  it('lets teachers publish their own Private and School courses', () => {
+    expect(requiresReview(actor(UserRole.TEACHER), course())).toBe(false);
+    expect(
+      requiresReview(
+        actor(UserRole.TEACHER),
+        course({ visibility: CourseVisibility.SCHOOL }),
+      ),
+    ).toBe(false);
+  });
+
+  it('sends Public teacher courses and all ATUPA content to review', () => {
+    expect(
+      requiresReview(
+        actor(UserRole.TEACHER),
+        course({ visibility: CourseVisibility.PUBLIC }),
+      ),
+    ).toBe(true);
+    const atupa = course({
+      ownerType: CourseOwnerType.ATUPA,
+      visibility: CourseVisibility.PUBLIC,
+    });
+    expect(requiresReview(actor(UserRole.CONTENT_CREATOR), atupa)).toBe(true);
+    expect(requiresReview(actor(UserRole.SUPPORT_ADMIN), atupa)).toBe(true);
+    expect(requiresReview(actor(UserRole.SUPER_ADMIN), atupa)).toBe(false);
+  });
+
+  it('lists only published Public courses', () => {
+    expect(
+      isDiscoverable(
+        course({
+          status: ContentStatus.PUBLISHED,
+          visibility: CourseVisibility.PUBLIC,
+        }),
+      ),
+    ).toBe(true);
+    expect(isDiscoverable(course({ status: ContentStatus.PUBLISHED }))).toBe(
+      false,
+    );
+    expect(
+      isDiscoverable(
+        course({
+          status: ContentStatus.IN_REVIEW,
+          visibility: CourseVisibility.PUBLIC,
+        }),
+      ),
+    ).toBe(false);
+  });
 });
 const actor = (role: UserRole, userId = 'x', schoolId?: string): Actor => ({
   role,

@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import type { Actor } from '../../../shared/application/actor';
 import type { EventBus } from '../../../shared/application/event-bus.port';
 import { EVENT_BUS } from '../../../shared/application/event-bus.port';
 import {
@@ -9,6 +10,7 @@ import {
 import { ConflictError, NotFoundError } from '../../../shared/domain/errors';
 import { todayKey } from '../../../shared/domain/text';
 import { CatalogQueryService } from '../../catalog';
+import { CourseAccessService } from '../../classes';
 import { LibraryService } from '../../library';
 import { summarizeCourseProgress } from '../domain/course-completion.rules';
 import {
@@ -75,7 +77,27 @@ export class ProgressService {
     @Inject(EVENT_BUS) private readonly bus: EventBus,
     private readonly catalog: CatalogQueryService,
     private readonly library: LibraryService,
+    private readonly courseAccess: CourseAccessService,
   ) {}
+
+  /** Private and School courses are limited to their learners (M-25). */
+  async assertCanLearnCourse(actor: Actor, courseId: string): Promise<void> {
+    const course = await this.catalog.getPublishedCourse(courseId);
+    await this.courseAccess.assertCanLearn(
+      actor,
+      course,
+      !!(await this.enrollments.find(actor.userId, courseId)),
+    );
+  }
+
+  async assertCanLearnLesson(actor: Actor, lessonId: string): Promise<void> {
+    const { course } = await this.catalog.getLearnerLesson(lessonId);
+    await this.courseAccess.assertCanLearn(
+      actor,
+      course,
+      !!(await this.enrollments.find(actor.userId, course.id)),
+    );
+  }
 
   async enroll(userId: string, courseId: string) {
     const course = await this.catalog.getPublishedCourse(courseId);

@@ -110,7 +110,7 @@ export class ReportsController {
     private readonly leaderboards: LeaderboardsService,
   ) {}
 
-  /** Learner, linked parents, their teachers, their school admin, super admin. */
+  /** Learner, linked parents, their teachers, their school admin, ATUPA admins. */
   @Get('reports/learners/:learnerId')
   async learner(
     @CurrentUser() actor: Actor,
@@ -119,7 +119,12 @@ export class ReportsController {
     return ok(await this.reports.learner(actor, learnerId));
   }
 
-  @Roles(UserRole.TEACHER, UserRole.SCHOOL_ADMIN, UserRole.SUPER_ADMIN)
+  @Roles(
+    UserRole.TEACHER,
+    UserRole.SCHOOL_ADMIN,
+    UserRole.SUPPORT_ADMIN,
+    UserRole.SUPER_ADMIN,
+  )
   @Get('reports/classes/:classId')
   async classReport(
     @CurrentUser() actor: Actor,

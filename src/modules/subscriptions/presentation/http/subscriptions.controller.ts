@@ -30,8 +30,8 @@ export class SubscriptionsController {
 
   @Public()
   @Get('plans')
-  plans() {
-    return ok(this.subscriptions.listPlans());
+  async plans() {
+    return ok(await this.subscriptions.listPlans());
   }
 
   @ApiBearerAuth()
@@ -64,9 +64,12 @@ export class SubscriptionsController {
   @Roles(UserRole.SUPER_ADMIN)
   @Get('payments')
   async payments(@Query() query: PaymentsQueryDto) {
-    const { status, ownerId } = query;
+    const { status, ownerId, planCode, from, to } = query;
     return ok(
-      await this.subscriptions.listPayments({ status, ownerId }, pageOf(query)),
+      await this.subscriptions.listPayments(
+        { status, ownerId, planCode, from, to },
+        pageOf(query),
+      ),
     );
   }
 

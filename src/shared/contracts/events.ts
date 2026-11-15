@@ -266,3 +266,168 @@ export class SubscriptionActivated extends IntegrationEvent {
     super();
   }
 }
+
+// ---- Admin, review and trust & safety -------------------------------------------
+
+export class UserRegistered extends IntegrationEvent {
+  static readonly NAME = 'identity.user_registered';
+  readonly name = UserRegistered.NAME;
+  constructor(
+    readonly userId: string,
+    readonly role: string,
+    readonly ip?: string,
+  ) {
+    super();
+  }
+}
+
+export class LoginFailed extends IntegrationEvent {
+  static readonly NAME = 'identity.login_failed';
+  readonly name = LoginFailed.NAME;
+  constructor(
+    readonly userId: string,
+    readonly role: string,
+    readonly ip?: string,
+  ) {
+    super();
+  }
+}
+
+export class VerificationDecided extends IntegrationEvent {
+  static readonly NAME = 'identity.verification_decided';
+  readonly name = VerificationDecided.NAME;
+  constructor(
+    readonly subjectType: 'user' | 'school',
+    readonly subjectId: string,
+    /** User to notify (the teacher, or the school's admin). */
+    readonly notifyUserId: string | undefined,
+    readonly approved: boolean,
+    readonly reason?: string,
+  ) {
+    super();
+  }
+}
+
+export class ContentReviewDecided extends IntegrationEvent {
+  static readonly NAME = 'catalog.review_decided';
+  readonly name = ContentReviewDecided.NAME;
+  constructor(
+    readonly contentType: string,
+    readonly contentId: string,
+    readonly title: string,
+    readonly authorUserId: string | undefined,
+    readonly approved: boolean,
+    readonly comment?: string,
+  ) {
+    super();
+  }
+}
+
+export class CourseVisibilityRequested extends IntegrationEvent {
+  static readonly NAME = 'catalog.visibility_requested';
+  readonly name = CourseVisibilityRequested.NAME;
+  constructor(
+    readonly courseId: string,
+    readonly title: string,
+    readonly authorUserId: string,
+  ) {
+    super();
+  }
+}
+
+export class CourseMadePrivateByAdmin extends IntegrationEvent {
+  static readonly NAME = 'catalog.course_made_private';
+  readonly name = CourseMadePrivateByAdmin.NAME;
+  constructor(
+    readonly courseId: string,
+    readonly title: string,
+    readonly authorUserId: string | undefined,
+    readonly reason: string,
+  ) {
+    super();
+  }
+}
+
+/** Teacher-written text that learners will read (lessons, announcements). */
+export class LearnerFacingTextSaved extends IntegrationEvent {
+  static readonly NAME = 'content.learner_text_saved';
+  readonly name = LearnerFacingTextSaved.NAME;
+  constructor(
+    readonly authorUserId: string,
+    readonly authorRole: string,
+    readonly targetType: 'course' | 'lesson' | 'announcement',
+    readonly targetId: string,
+    readonly text: string,
+  ) {
+    super();
+  }
+}
+
+export class LearnersJoinedClass extends IntegrationEvent {
+  static readonly NAME = 'classes.learners_joined';
+  readonly name = LearnersJoinedClass.NAME;
+  constructor(
+    readonly classroomId: string,
+    readonly teacherUserId: string,
+    readonly learnerIds: string[],
+    readonly ip?: string,
+  ) {
+    super();
+  }
+}
+
+export class PaymentFailed extends IntegrationEvent {
+  static readonly NAME = 'subscriptions.payment_failed';
+  readonly name = PaymentFailed.NAME;
+  constructor(
+    readonly userId: string,
+    readonly reference: string,
+    readonly reason: string,
+  ) {
+    super();
+  }
+}
+
+export class SafetyReportFiled extends IntegrationEvent {
+  static readonly NAME = 'safety.report_filed';
+  readonly name = SafetyReportFiled.NAME;
+  constructor(
+    readonly reportId: string,
+    readonly reference: string,
+    readonly severity: string,
+    readonly targetType: string,
+    readonly targetId: string,
+    readonly targetName: string,
+    readonly reason: string,
+  ) {
+    super();
+  }
+}
+
+export class SafetyReportResolved extends IntegrationEvent {
+  static readonly NAME = 'safety.report_resolved';
+  readonly name = SafetyReportResolved.NAME;
+  constructor(
+    readonly reportId: string,
+    readonly reference: string,
+    readonly reporterId: string,
+    readonly outcome: string,
+    /** Account that receives a warning, when the outcome is a warning. */
+    readonly warnedUserId?: string,
+  ) {
+    super();
+  }
+}
+
+export class AlertRaised extends IntegrationEvent {
+  static readonly NAME = 'safety.alert_raised';
+  readonly name = AlertRaised.NAME;
+  constructor(
+    readonly alertId: string,
+    readonly type: string,
+    readonly severity: string,
+    readonly summary: string,
+  ) {
+    super();
+  }
+}

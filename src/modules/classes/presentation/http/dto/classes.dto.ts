@@ -35,13 +35,15 @@ export class CreateClassDto {
   languageCode?: string;
 
   @ApiPropertyOptional({
-    description: 'Required for school admins / super admins',
+    description: 'Required for school admins and ATUPA admins',
   })
   @IsOptional()
   @IsMongoId()
   teacherUserId?: string;
 
-  @ApiPropertyOptional({ description: 'Super admins only' })
+  @ApiPropertyOptional({
+    description: 'ATUPA admins only; leave out for an independent class',
+  })
   @IsOptional()
   @IsMongoId()
   schoolId?: string;
@@ -86,8 +88,13 @@ export class JoinClassDto {
 }
 
 export class ClassesQueryDto extends PaginationQueryDto {
-  @ApiPropertyOptional({ description: 'Super admins: filter by school' })
+  @ApiPropertyOptional({ description: 'ATUPA admins: filter by school' })
   @IsOptional()
   @IsMongoId()
   schoolId?: string;
+
+  @ApiPropertyOptional({ description: 'ATUPA admins: filter by teacher' })
+  @IsOptional()
+  @IsMongoId()
+  teacherUserId?: string;
 }

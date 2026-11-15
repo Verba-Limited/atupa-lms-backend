@@ -92,6 +92,9 @@ function toCourseQuery(filter: CourseFilter): Record<string, unknown> {
   if (filter.status) query.status = filter.status;
   if (filter.createdByUserId) query.createdByUserId = filter.createdByUserId;
   if (filter.schoolId) query.schoolId = filter.schoolId;
+  if (filter.visibility) query.visibility = filter.visibility;
+  if (filter.ownerType) query.ownerType = filter.ownerType;
+  if (filter.publicRequestPending) query['publicRequest.status'] = 'pending';
   if (filter.excludeIds?.length)
     query._id = { $nin: objectIds(filter.excludeIds) };
   if (filter.q) {

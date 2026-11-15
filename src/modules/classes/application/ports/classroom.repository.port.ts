@@ -8,6 +8,7 @@ export interface ClassroomFilter {
   schoolId?: string;
   teacherUserId?: string;
   studentUserId?: string;
+  assignedCourseId?: string;
   includeArchived?: boolean;
 }
 

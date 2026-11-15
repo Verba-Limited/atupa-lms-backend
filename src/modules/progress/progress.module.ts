@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { CatalogModule } from '../catalog';
+import { ClassesModule } from '../classes';
 import { LibraryModule } from '../library';
 import {
   ACTIVITY_COMPLETION_REPOSITORY,
@@ -40,6 +41,7 @@ import { ProgressController } from './presentation/http/progress.controller';
 @Module({
   imports: [
     CatalogModule,
+    ClassesModule,
     LibraryModule,
     MongooseModule.forFeature([
       { name: EnrollmentRecord.name, schema: EnrollmentSchema },
