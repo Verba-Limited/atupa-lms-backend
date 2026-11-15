@@ -11,7 +11,18 @@ export enum MediaPurpose {
   CONTENT = 'content',
   PROFILE = 'profile',
   SUBMISSION = 'submission',
+  /** Teacher ID or certificate scans for ATUPA to check. */
+  VERIFICATION = 'verification',
+  /** Screenshot attached to a safety report. */
+  REPORT = 'report',
 }
+
+/** Private uploads: only the owner and ATUPA staff can open them. */
+export const PRIVATE_PURPOSES = [
+  MediaPurpose.SUBMISSION,
+  MediaPurpose.VERIFICATION,
+  MediaPurpose.REPORT,
+];
 
 export interface MediaAsset {
   id: string;

@@ -43,5 +43,6 @@ import {
     LearnerAccessService,
     LearnerInsightsService,
   ],
+  exports: [DashboardsService, ReportsService],
 })
 export class ReportsModule {}

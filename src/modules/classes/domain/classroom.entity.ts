@@ -21,6 +21,7 @@ export interface Classroom {
 export function canManageClass(actor: Actor, classroom: Classroom): boolean {
   switch (actor.role) {
     case UserRole.SUPER_ADMIN:
+    case UserRole.SUPPORT_ADMIN:
       return true;
     case UserRole.SCHOOL_ADMIN:
       return !!classroom.schoolId && classroom.schoolId === actor.schoolId;

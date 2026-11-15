@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { CatalogModule } from '../catalog';
 import { IdentityModule } from '../identity';
 import { ClassesService } from './application/classes.service';
+import { CourseAccessService } from './application/course-access.service';
 import { CLASSROOM_REPOSITORY } from './application/ports/classroom.repository.port';
 import { ClassroomMongoRepository } from './infrastructure/persistence/classroom.mongo-repository';
 import {
@@ -23,9 +24,10 @@ import { ClassesController } from './presentation/http/classes.controller';
   controllers: [ClassesController],
   providers: [
     ClassesService,
+    CourseAccessService,
     ClassesListeners,
     { provide: CLASSROOM_REPOSITORY, useClass: ClassroomMongoRepository },
   ],
-  exports: [ClassesService],
+  exports: [ClassesService, CourseAccessService],
 })
 export class ClassesModule {}

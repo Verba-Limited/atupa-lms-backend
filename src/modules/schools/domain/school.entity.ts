@@ -9,6 +9,19 @@ export interface SchoolSettings {
   showLearnerNamesOnLeaderboards: boolean;
 }
 
+/** Schools that registered themselves start unverified (M-28). */
+export type SchoolVerificationStatus =
+  'unverified' | 'pending' | 'verified' | 'rejected';
+
+export interface SchoolVerification {
+  status: SchoolVerificationStatus;
+  documents: Array<{ mediaId: string; url: string; label: string }>;
+  note?: string | null;
+  submittedAt?: Date | null;
+  decidedAt?: Date | null;
+  decidedByUserId?: string | null;
+}
+
 export interface School {
   id: string;
   name: string;
@@ -22,7 +35,15 @@ export interface School {
   joinCode: string;
   settings: SchoolSettings;
   isActive: boolean;
+  verification?: SchoolVerification;
   createdAt?: Date;
+}
+
+/** Schools created before verification existed count as verified. */
+export function schoolVerificationStatus(
+  school: Pick<School, 'verification'>,
+): SchoolVerificationStatus {
+  return school.verification?.status ?? 'verified';
 }
 
 export const DEFAULT_SCHOOL_SETTINGS: SchoolSettings = {

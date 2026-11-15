@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { IdentityModule } from '../identity';
 import { MediaModule } from '../media';
+import { ContentReviewService } from './application/content-review.service';
 import { CatalogQueryService } from './application/catalog-query.service';
 import { CourseAuthoringService } from './application/course-authoring.service';
 import { LanguagesService } from './application/languages.service';
@@ -41,6 +43,7 @@ import { CatalogController } from './presentation/http/catalog.controller';
 @Module({
   imports: [
     MediaModule,
+    IdentityModule,
     MongooseModule.forFeature([
       { name: LanguageRecord.name, schema: LanguageSchema },
       { name: CourseRecord.name, schema: CourseSchema },
@@ -54,6 +57,7 @@ import { CatalogController } from './presentation/http/catalog.controller';
   providers: [
     CatalogQueryService,
     CourseAuthoringService,
+    ContentReviewService,
     LanguagesService,
     CatalogMigrations,
     { provide: LANGUAGE_REPOSITORY, useClass: LanguageMongoRepository },
@@ -63,6 +67,11 @@ import { CatalogController } from './presentation/http/catalog.controller';
     { provide: ACTIVITY_REPOSITORY, useClass: ActivityMongoRepository },
     { provide: QUIZ_REPOSITORY, useClass: QuizMongoRepository },
   ],
-  exports: [CatalogQueryService, CourseAuthoringService, LanguagesService],
+  exports: [
+    CatalogQueryService,
+    CourseAuthoringService,
+    ContentReviewService,
+    LanguagesService,
+  ],
 })
 export class CatalogModule {}

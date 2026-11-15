@@ -1,6 +1,6 @@
 import { Page, PageRequest } from '../../../../shared/domain/pagination';
 import { UserRole } from '../../../../shared/domain/user-role';
-import { User } from '../../domain/user.entity';
+import { User, VerificationStatus } from '../../domain/user.entity';
 
 export const USER_REPOSITORY = Symbol('USER_REPOSITORY');
 
@@ -8,6 +8,7 @@ export interface UserFilter {
   role?: UserRole;
   schoolId?: string;
   isActive?: boolean;
+  verificationStatus?: VerificationStatus;
   q?: string;
 }
 

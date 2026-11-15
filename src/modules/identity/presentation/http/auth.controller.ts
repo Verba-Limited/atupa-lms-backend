@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Ip, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Actor } from '../../../../shared/application/actor';
@@ -29,16 +29,16 @@ export class AuthController {
   @Public()
   @Throttle(AUTH_RATE_LIMIT)
   @Post('register')
-  async register(@Body() dto: RegisterDto) {
-    return ok(await this.auth.register(dto), 'Registered');
+  async register(@Body() dto: RegisterDto, @Ip() ip: string) {
+    return ok(await this.auth.register(dto, ip), 'Registered');
   }
 
   @Public()
   @Throttle(AUTH_RATE_LIMIT)
   @HttpCode(200)
   @Post('login')
-  async login(@Body() dto: LoginDto) {
-    return ok(await this.auth.login(dto.email, dto.password), 'Logged in');
+  async login(@Body() dto: LoginDto, @Ip() ip: string) {
+    return ok(await this.auth.login(dto.email, dto.password, ip), 'Logged in');
   }
 
   @Public()

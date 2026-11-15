@@ -18,6 +18,7 @@ import {
   NotificationSchema,
 } from './infrastructure/persistence/notification.schema';
 import { LearningRemindersJob } from './infrastructure/scheduling/learning-reminders.job';
+import { AdminNotificationsListeners } from './presentation/events/admin-notifications.listeners';
 import { NotificationsListeners } from './presentation/events/notifications.listeners';
 import { NotificationsController } from './presentation/http/notifications.controller';
 
@@ -35,6 +36,7 @@ import { NotificationsController } from './presentation/http/notifications.contr
   providers: [
     NotificationsService,
     NotificationsListeners,
+    AdminNotificationsListeners,
     LearningRemindersJob,
     { provide: NOTIFICATION_REPOSITORY, useClass: NotificationMongoRepository },
     {

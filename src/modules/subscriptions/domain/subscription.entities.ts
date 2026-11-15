@@ -1,32 +1,45 @@
-export type PlanCode = 'free' | 'individual_premium' | 'school';
+/** Plan codes are set by admins (S-01); "free" always exists. */
+export type PlanCode = string;
 export type OwnerType = 'user' | 'school';
+
+export const FREE_PLAN_CODE = 'free';
 
 export interface Plan {
   code: PlanCode;
   label: string;
+  description?: string;
+  /** Plans are tiers: 0 is free, higher tiers unlock more. */
+  tier: number;
   /** Price per period in kobo (NGN x 100). */
   amountKobo: number;
   periodDays: number;
   ownerType: OwnerType;
   features: string[];
+  /** Inactive plans cannot be bought; existing subscribers keep them. */
+  isActive: boolean;
+  order: number;
 }
 
 /**
- * Plans from PRD section 29. Prices are placeholders until the PM confirms
- * pricing; changing them here does not affect already-paid periods.
+ * Starting plans from PRD section 29, seeded once into the database. Admins
+ * then edit plans and prices; changes never affect already-paid periods.
  */
-export const PLANS: Record<PlanCode, Plan> = {
-  free: {
-    code: 'free',
+export const DEFAULT_PLANS: Plan[] = [
+  {
+    code: FREE_PLAN_CODE,
     label: 'Free',
+    tier: 0,
     amountKobo: 0,
     periodDays: 0,
     ownerType: 'user',
     features: ['Limited courses', 'Basic lessons', 'Limited games'],
+    isActive: true,
+    order: 0,
   },
-  individual_premium: {
+  {
     code: 'individual_premium',
     label: 'Individual Premium',
+    tier: 1,
     amountKobo: 500_000,
     periodDays: 30,
     ownerType: 'user',
@@ -36,10 +49,13 @@ export const PLANS: Record<PlanCode, Plan> = {
       'Certificates',
       'Advanced learning materials',
     ],
+    isActive: true,
+    order: 1,
   },
-  school: {
+  {
     code: 'school',
     label: 'School Plan',
+    tier: 2,
     amountKobo: 2_500_000,
     periodDays: 30,
     ownerType: 'school',
@@ -50,8 +66,14 @@ export const PLANS: Record<PlanCode, Plan> = {
       'Reports',
       'Administration tools',
     ],
+    isActive: true,
+    order: 2,
   },
-};
+];
+
+/** Limits on manual plan changes by admins (refunds, school deals). */
+export const MAX_MANUAL_GRANT_DAYS = 366;
+export const MAX_MANUAL_PERIOD_DAYS = 2 * 366;
 
 export type SubscriptionStatus = 'active' | 'cancelled';
 
@@ -63,6 +85,14 @@ export interface Subscription {
   status: SubscriptionStatus;
   currentPeriodStart?: Date;
   currentPeriodEnd?: Date;
+  /** Set when an admin changed the plan by hand. */
+  lastManualChange?: {
+    action: 'grant' | 'cancel';
+    days?: number;
+    reason: string;
+    byUserId: string;
+    at: Date;
+  } | null;
   updatedAt?: Date;
 }
 
@@ -73,7 +103,7 @@ export function isSubscriptionActive(
   return (
     !!sub &&
     sub.status === 'active' &&
-    sub.planCode !== 'free' &&
+    sub.planCode !== FREE_PLAN_CODE &&
     !!sub.currentPeriodEnd &&
     sub.currentPeriodEnd.getTime() > now.getTime()
   );

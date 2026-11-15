@@ -9,7 +9,7 @@ import { ParentsService } from '../../parents';
 /**
  * Who may see a learner's data:
  * the learner, linked parents, teachers of a class they are in,
- * admins of their school, and super admins.
+ * admins of their school, and ATUPA super and support admins.
  */
 @Injectable()
 export class LearnerAccessService {
@@ -31,6 +31,7 @@ export class LearnerAccessService {
   private async canView(actor: Actor, learner: PublicUser): Promise<boolean> {
     switch (actor.role) {
       case UserRole.SUPER_ADMIN:
+      case UserRole.SUPPORT_ADMIN:
         return true;
       case UserRole.LEARNER:
         return actor.userId === learner.id;

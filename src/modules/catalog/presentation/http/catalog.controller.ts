@@ -65,9 +65,14 @@ export class CatalogController {
   @Get('courses')
   async listCourses(@Query() query: CourseQueryDto) {
     const { page, limit, ...filter } = query;
-    return ok(
-      await this.catalog.listPublishedCourses(filter, pageOf({ page, limit })),
+    const result = await this.catalog.listPublishedCourses(
+      filter,
+      pageOf({ page, limit }),
     );
+    return ok({
+      ...result,
+      items: await this.catalog.withAuthors(result.items),
+    });
   }
 
   /** Course -> modules -> lessons outline (no lesson bodies, no answers). */

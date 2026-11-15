@@ -9,6 +9,8 @@ import { Connection } from 'mongoose';
  * - quiz questions get stable ids
  * - lesson.gamecardQrCode becomes lesson.gamecardCodes
  * - activities get their courseId
+ * - courses get an owner type and visibility (ATUPA courses stay Public;
+ *   teacher and school courses become Private, enrolled learners keep access)
  */
 @Injectable()
 export class CatalogMigrations implements OnModuleInit {
@@ -65,6 +67,36 @@ export class CatalogMigrations implements OnModuleInit {
             { $set: { courseId: lesson.courseId } },
           );
       }
+    }
+
+    const coursesWithoutOwner = db
+      .collection('courses')
+      .find({ ownerType: { $exists: false } });
+    for await (const course of coursesWithoutOwner) {
+      const creatorId = course.createdByUserId as string | undefined;
+      const creator =
+        creatorId && /^[a-f0-9]{24}$/i.test(creatorId)
+          ? await db.collection('users').findOne({
+              $expr: { $eq: [{ $toString: '$_id' }, creatorId] },
+            })
+          : null;
+      const role = creator?.role as string | undefined;
+      const byAtupa = !role
+        ? !course.schoolId
+        : ['super_admin', 'content_creator', 'support_admin'].includes(role);
+      await db.collection('courses').updateOne(
+        { _id: course._id },
+        {
+          $set: {
+            ownerType: byAtupa
+              ? 'atupa'
+              : role === 'school_admin'
+                ? 'school'
+                : 'teacher',
+            visibility: byAtupa ? 'public' : 'private',
+          },
+        },
+      );
     }
 
     const quizzesWithoutIds = db.collection('quizzes').find({

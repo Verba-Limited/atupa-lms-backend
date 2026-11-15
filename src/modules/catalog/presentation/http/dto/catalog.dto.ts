@@ -6,6 +6,7 @@ import {
   IsBoolean,
   IsDefined,
   IsEnum,
+  IsIn,
   IsInt,
   IsMongoId,
   IsObject,
@@ -19,10 +20,18 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import { ProficiencyLevel } from '../../../../../shared/domain/enums';
+import {
+  ContentStatus,
+  ProficiencyLevel,
+} from '../../../../../shared/domain/enums';
 import { PaginationQueryDto } from '../../../../../shared/presentation/dto/pagination-query.dto';
 import { ActivityType } from '../../../domain/activity.entity';
-import { AgeGroup, CourseType } from '../../../domain/course.entity';
+import {
+  AgeGroup,
+  CourseOwnerType,
+  CourseType,
+  CourseVisibility,
+} from '../../../domain/course.entity';
 import { LessonBlockType } from '../../../domain/lesson.entity';
 import { QuestionType } from '../../../domain/quiz.entity';
 
@@ -184,6 +193,53 @@ export class CreateCourseDto {
 }
 
 export class UpdateCourseDto extends PartialType(CreateCourseDto) {}
+
+export class SetVisibilityDto {
+  @ApiProperty({ enum: CourseVisibility })
+  @IsEnum(CourseVisibility)
+  visibility!: CourseVisibility;
+}
+
+export class AdminSetVisibilityDto extends SetVisibilityDto {
+  @ApiProperty({ example: 'Content needs fixing before it is public' })
+  @IsString()
+  @Length(3, 1000)
+  reason!: string;
+}
+
+export class ReviewDecisionDto {
+  @ApiProperty({ enum: ['approve', 'reject'] })
+  @IsIn(['approve', 'reject'])
+  decision!: 'approve' | 'reject';
+
+  @ApiPropertyOptional({ description: 'Required when rejecting' })
+  @IsOptional()
+  @IsString()
+  @Length(3, 2000)
+  comment?: string;
+}
+
+export class AdminCourseQueryDto extends CourseQueryDto {
+  @ApiPropertyOptional({ enum: ContentStatus })
+  @IsOptional()
+  @IsEnum(ContentStatus)
+  status?: ContentStatus;
+
+  @ApiPropertyOptional({ enum: CourseVisibility })
+  @IsOptional()
+  @IsEnum(CourseVisibility)
+  visibility?: CourseVisibility;
+
+  @ApiPropertyOptional({ enum: CourseOwnerType })
+  @IsOptional()
+  @IsEnum(CourseOwnerType)
+  ownerType?: CourseOwnerType;
+
+  @ApiPropertyOptional({ description: 'Courses made by this user' })
+  @IsOptional()
+  @IsMongoId()
+  createdByUserId?: string;
+}
 
 // ---- Modules & lessons --------------------------------------------------------
 

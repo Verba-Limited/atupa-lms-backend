@@ -179,6 +179,13 @@ export class SchoolsQueryDto extends PaginationQueryDto {
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({
+    enum: ['unverified', 'pending', 'verified', 'rejected'],
+  })
+  @IsOptional()
+  @IsIn(['unverified', 'pending', 'verified', 'rejected'])
+  verificationStatus?: string;
 }
 
 export class JoinSchoolDto {

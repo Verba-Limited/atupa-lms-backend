@@ -4,6 +4,8 @@ export enum UserRole {
   TEACHER = 'teacher',
   SCHOOL_ADMIN = 'school_admin',
   CONTENT_CREATOR = 'content_creator',
+  /** ATUPA/Verba staff who manage course content, classes and learners. */
+  SUPPORT_ADMIN = 'support_admin',
   SUPER_ADMIN = 'super_admin',
 }
 
@@ -20,6 +22,7 @@ export const SELF_REGISTRATION_ROLES = [
 export const CONTENT_AUTHOR_ROLES = [
   UserRole.TEACHER,
   UserRole.CONTENT_CREATOR,
+  UserRole.SUPPORT_ADMIN,
   UserRole.SCHOOL_ADMIN,
   UserRole.SUPER_ADMIN,
 ];
@@ -27,5 +30,16 @@ export const CONTENT_AUTHOR_ROLES = [
 /** Roles that manage platform-wide content regardless of ownership. */
 export const PLATFORM_CONTENT_ROLES = [
   UserRole.CONTENT_CREATOR,
+  UserRole.SUPPORT_ADMIN,
   UserRole.SUPER_ADMIN,
 ];
+
+/** ATUPA staff who use the admin console. */
+export const STAFF_ROLES = [
+  UserRole.CONTENT_CREATOR,
+  UserRole.SUPPORT_ADMIN,
+  UserRole.SUPER_ADMIN,
+];
+
+/** Staff who look after users, classes and learner support. */
+export const SUPPORT_ROLES = [UserRole.SUPPORT_ADMIN, UserRole.SUPER_ADMIN];

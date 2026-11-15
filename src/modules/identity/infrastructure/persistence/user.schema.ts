@@ -1,5 +1,9 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { UserRole } from '../../../../shared/domain/user-role';
+import {
+  VerificationDocument,
+  VerificationStatus,
+} from '../../domain/user.entity';
 
 @Schema({ timestamps: true, collection: 'users' })
 export class UserRecord {
@@ -53,6 +57,30 @@ export class UserRecord {
 
   @Prop({ index: true })
   lastActiveAt?: Date;
+
+  @Prop({ type: Date, default: null })
+  lastLoginAt?: Date | null;
+
+  @Prop({ enum: VerificationStatus, type: String, index: true })
+  verificationStatus?: VerificationStatus;
+
+  @Prop({
+    type: [{ mediaId: String, url: String, label: String, _id: false }],
+    default: undefined,
+  })
+  verificationDocuments?: VerificationDocument[];
+
+  @Prop({ type: String, default: null })
+  verificationNote?: string | null;
+
+  @Prop({ type: Date, default: null })
+  verificationSubmittedAt?: Date | null;
+
+  @Prop({ type: Date, default: null })
+  verifiedAt?: Date | null;
+
+  @Prop({ type: String, default: null })
+  verifiedByUserId?: string | null;
 }
 
 export const UserSchema = SchemaFactory.createForClass(UserRecord);

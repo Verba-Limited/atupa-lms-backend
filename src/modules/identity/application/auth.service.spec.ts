@@ -117,7 +117,12 @@ describe('AuthService', () => {
     const { service, events } = setup();
     await service.register(learner);
     await service.requestPasswordReset(learner.email);
-    const token = events.publish.mock.calls[0][0].resetToken as string;
+    const reset = events.publish.mock.calls
+      .map(
+        (call: unknown[]) => call[0] as { name: string; resetToken?: string },
+      )
+      .find((e) => e.name === 'identity.password_reset_requested');
+    const token = reset?.resetToken as string;
     await service.resetPassword(token, 'NewPassw0rd');
     await expect(
       service.login(learner.email, 'NewPassw0rd'),

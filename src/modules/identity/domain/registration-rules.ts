@@ -19,6 +19,7 @@ export const REQUIRED_FIELDS_BY_ROLE: Record<UserRole, ProfileField[]> = {
   ],
   [UserRole.SCHOOL_ADMIN]: ['firstName', 'lastName'],
   [UserRole.CONTENT_CREATOR]: ['firstName', 'lastName'],
+  [UserRole.SUPPORT_ADMIN]: ['firstName', 'lastName'],
   [UserRole.SUPER_ADMIN]: ['firstName'],
 };
 

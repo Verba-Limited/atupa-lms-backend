@@ -2,7 +2,11 @@ import { Inject, Injectable } from '@nestjs/common';
 import { randomBytes, timingSafeEqual } from 'crypto';
 import type { EventBus } from '../../../shared/application/event-bus.port';
 import { EVENT_BUS } from '../../../shared/application/event-bus.port';
-import { PasswordResetRequested } from '../../../shared/contracts/events';
+import {
+  LoginFailed,
+  PasswordResetRequested,
+  UserRegistered,
+} from '../../../shared/contracts/events';
 import {
   ConflictError,
   ForbiddenError,
@@ -17,7 +21,12 @@ import {
   assertRequiredFields,
   assertStrongPassword,
 } from '../domain/registration-rules';
-import { PublicUser, toPublicUser, User } from '../domain/user.entity';
+import {
+  initialVerificationStatus,
+  PublicUser,
+  toPublicUser,
+  User,
+} from '../domain/user.entity';
 import type { PasswordHasher } from './ports/password-hasher.port';
 import { PASSWORD_HASHER } from './ports/password-hasher.port';
 import type { TokenIssuer } from './ports/token-issuer.port';
@@ -57,7 +66,7 @@ export class AuthService {
   ) {}
 
   /** Public self sign-up. Privileged roles can only be created by admins. */
-  async register(input: RegisterInput): Promise<AuthSession> {
+  async register(input: RegisterInput, ip?: string): Promise<AuthSession> {
     if (
       !(SELF_REGISTRATION_ROLES as readonly UserRole[]).includes(input.role)
     ) {
@@ -65,7 +74,11 @@ export class AuthService {
         `Accounts with role ${input.role} cannot be self-registered`,
       );
     }
-    return this.createAccount(input);
+    const session = await this.createAccount(input);
+    await this.events.publish(
+      new UserRegistered(session.user.id, session.user.role, ip),
+    );
+    return session;
   }
 
   /**
@@ -90,21 +103,31 @@ export class AuthService {
       schoolId: input.schoolId ?? null,
       passwordHash: await this.hasher.hash(password),
       isActive: true,
+      verificationStatus: initialVerificationStatus(input.role),
     });
     return this.startSession(user);
   }
 
-  async login(email: string, password: string): Promise<AuthSession> {
+  async login(
+    email: string,
+    password: string,
+    ip?: string,
+  ): Promise<AuthSession> {
     const user = await this.users.findByEmail(email.toLowerCase().trim());
     // Compare even when the user is missing to keep timing uniform.
     const valid = await this.hasher.compare(
       password,
       user?.passwordHash ?? (await this.dummyHash()),
     );
+    if (user && !valid) {
+      await this.events.publish(new LoginFailed(user.id, user.role, ip));
+    }
     if (!user || !valid || !user.isActive) {
       throw new UnauthorizedError('Invalid email or password');
     }
-    return this.startSession(user);
+    const session = await this.startSession(user);
+    await this.users.update(user.id, { lastLoginAt: new Date() });
+    return session;
   }
 
   async refresh(refreshToken: string): Promise<AuthSession> {

@@ -1,6 +1,6 @@
 import { QuizAttemptsService } from '../src/modules/learning/application/quiz-attempts.service';
 import { TIMER_GRACE_SECONDS } from '../src/modules/learning/domain/quiz-attempt.entity';
-import { auth, register, Session } from './support/api';
+import { auth, register, Session, makeCoursePublic } from './support/api';
 import { createTestApp, TestContext } from './support/test-app';
 
 /** Image/audio questions, timers and randomised order (US-07). */
@@ -103,6 +103,8 @@ describe('Assessments (e2e)', () => {
       .post(`/api/v1/authoring/courses/${courseId}/publish`)
       .set(auth(teacher))
       .expect(200);
+    // Teacher courses start Private; make this one Public for any learner.
+    await makeCoursePublic(ctx, teacher, courseId);
   }, 120_000);
 
   afterAll(() => ctx?.close());

@@ -43,8 +43,8 @@ Rules:
 
 | Module | Responsibility |
 |---|---|
-| `identity` | Registration (learner/parent/teacher self-sign-up), login, refresh rotation, password reset, invitations, profile, super-admin user management |
-| `catalog` | Languages, courses → modules → lessons → activities → quizzes; CMS (`/authoring/*`) with ownership rules; learner-safe read facade |
+| `identity` | Registration (learner/parent/teacher self-sign-up), login, refresh rotation, password reset, invitations, profile, admin user management, teacher verification |
+| `catalog` | Languages, courses → modules → lessons → activities → quizzes; CMS (`/authoring/*`) with ownership rules; course visibility (Private/School/Public); super admin review; learner-safe read facade |
 | `library` | Vocabulary bank (concepts across languages), cultural topics, ATUPA games |
 | `media` | Cloudinary direct/signed uploads, optimised delivery URLs (images `f_auto,q_auto`, HLS video, 64k audio) |
 | `learning` | Lesson player, activity grading, server-timed quiz attempts, answer review, premium gating |
@@ -59,15 +59,19 @@ Rules:
 | `subscriptions` | Plans, Paystack checkout, signed webhook, verification, entitlement checks |
 | `search` | Courses, lessons, languages, vocabulary, cultural topics and games with filters |
 | `reports` | Learner/parent/teacher/school/admin dashboards, learner/class/school reports, leaderboards |
+| `safety` | Learner/parent reports on teachers, schools, courses and classes; the reports queue with outcomes; unusual activity alerts |
+| `audit` | Activity log of every staff, school admin and teacher change (who, what, when, from where) |
+| `admin` | Admin console: home, role-based menu, user overview, verifications, review queue, bulk learner upload, plans and manual grants, CSV/PDF exports |
 
 ## Main endpoints (prefix `/api/v1`)
 
 | Area | Endpoints |
 |---|---|
 | Auth | `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/password/{forgot,reset,change}`; `GET/PATCH /users/me` |
-| Admin | `GET/POST/PATCH /admin/users`, `GET /dashboards/admin`, `GET /subscriptions/payments`, `GET /certificates` |
+| Admin | `GET /admin/me/permissions`, `GET /admin/overview`, `GET/POST/PATCH /admin/users`, `GET /admin/users/:id/overview`, `POST /admin/users/:id/{access-link,verification}`, `GET /admin/verifications`, `GET /admin/reviews`, `POST /admin/reviews/{courses,lessons,library}/...`, `GET /admin/courses`, `PATCH /admin/courses/:id/visibility`, `POST /admin/learners/bulk`, `GET/POST/PATCH /admin/plans`, `GET /admin/subscriptions`, `POST /admin/subscriptions/{grant,cancel}`, `GET /admin/payments`, `GET /admin/exports/*`, `GET /admin/activity-log` |
+| Safety | `POST /safety-reports`, `GET /safety-reports/mine`, `GET /admin/safety-reports`, `POST /admin/safety-reports/:id/{assign,comments,resolve}`, `GET/PATCH /admin/alerts` |
 | Browse | `GET /languages`, `GET /courses`, `GET /courses/:id`, `GET /vocabulary`, `/vocabulary/concepts/:key`, `/cultural-topics`, `/games`, `GET /search` |
-| CMS | `/authoring/courses`, `/authoring/modules/:id`, `/authoring/lessons/:id`, `/authoring/activities/:id`, `/authoring/quizzes/:id`, `/authoring/vocabulary`, `/authoring/cultural-topics`, `/authoring/games`, `/authoring/gamecards` |
+| CMS | `/authoring/courses`, `PATCH /authoring/courses/:id/visibility`, `/authoring/modules/:id`, `/authoring/lessons/:id`, `/authoring/activities/:id`, `/authoring/quizzes/:id`, `/authoring/vocabulary`, `/authoring/cultural-topics`, `/authoring/games`, `/authoring/gamecards` |
 | Media | `POST /media/uploads` → upload to Cloudinary → `POST /media/uploads/confirm`; or `POST /media/upload` (≤25MB) |
 | Learning | `GET /learning/lessons/:id`, `POST /learning/activities/:id/submit`, `POST /learning/quizzes/:id/attempts`, `POST /learning/attempts/:id/submit`, `GET /learning/attempts/:id/review` |
 | Progress | `POST /progress/courses/:id/enroll`, `GET /progress/courses`, `PUT /progress/lessons/:id/position`, `POST /progress/lessons/:id/complete`, `GET /progress/continue`, `POST /progress/heartbeat`, `GET /progress/{stats,badges,activity}` |
@@ -89,6 +93,8 @@ Responses are `{ success, message, data }`; lists are `{ items, page, limit, tot
 - Quiz answers are keyed by **question id**, not index.
 - Send `POST /progress/heartbeat` about every 60 seconds while a learner is active, to record learning time.
 - Media: request a ticket, upload the file with the returned `fields` to `uploadUrl`, then confirm with the returned `public_id`. Use `optimizedUrl` / `streamingUrl` for playback.
+- Teacher courses are **Private** by default. `PATCH /authoring/courses/:id/visibility` sets `private`, `school` or asks for `public` (verified teachers; a super admin approves). Browse/search list only Public courses; each shows `byAtupa` and `author.isVerified`.
+- Publishing ATUPA content (content creators, support admins) or lessons in a Public teacher course returns `status: in_review` and `submittedForReview: true` until a super admin approves it.
 - Paystack redirects to `${FRONTEND_URL}/payments/callback?reference=...`; then call `GET /subscriptions/payments/:reference/verify`.
 - Emails link to `${FRONTEND_URL}/reset-password?token=` and `/set-password?token=`; GameCard QRs open `${FRONTEND_URL}/scan/:code`; certificates open `${FRONTEND_URL}/certificates/verify/:code`.
 

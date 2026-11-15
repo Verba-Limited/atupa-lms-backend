@@ -19,6 +19,11 @@ import { Roles } from '../../../../shared/presentation/decorators/roles.decorato
 import { pageOf } from '../../../../shared/presentation/dto/pagination-query.dto';
 import { ok } from '../../../../shared/presentation/http/api-response';
 import { IdParam } from '../../../../shared/presentation/http/id-param';
+import { MediaPurpose, MediaService } from '../../../media';
+import {
+  SubmitVerificationDto,
+  VerificationDecisionDto,
+} from '../../../identity/presentation/http/dto/admin-users.dto';
 import { SchoolsService } from '../../application/schools.service';
 import {
   AddMemberDto,
@@ -33,7 +38,10 @@ import {
 @ApiTags('Schools')
 @Controller('schools')
 export class SchoolsController {
-  constructor(private readonly schools: SchoolsService) {}
+  constructor(
+    private readonly schools: SchoolsService,
+    private readonly media: MediaService,
+  ) {}
 
   /** Public school sign-up: creates the school and its admin account. */
   @Public()
@@ -56,7 +64,11 @@ export class SchoolsController {
   async list(@Query() query: SchoolsQueryDto) {
     return ok(
       await this.schools.list(
-        { q: query.q, isActive: query.isActive },
+        {
+          q: query.q,
+          isActive: query.isActive,
+          verificationStatus: query.verificationStatus,
+        },
         pageOf(query),
       ),
     );
@@ -170,5 +182,56 @@ export class SchoolsController {
   ) {
     await this.schools.removeMember(actor, schoolId, userId);
     return ok(null, 'Member removed from school');
+  }
+
+  /** The school admin sends registration documents for ATUPA to check. */
+  @ApiBearerAuth()
+  @Roles(UserRole.SCHOOL_ADMIN)
+  @Post(':schoolId/verification')
+  async submitVerification(
+    @CurrentUser() actor: Actor,
+    @IdParam('schoolId') schoolId: string,
+    @Body() dto: SubmitVerificationDto,
+  ) {
+    const assets = await this.media.requireOwnUploads(
+      actor,
+      dto.documents.map((d) => d.mediaId),
+      MediaPurpose.VERIFICATION,
+    );
+    return ok(
+      await this.schools.submitVerification(
+        actor,
+        schoolId,
+        dto.documents.map((d, i) => ({
+          mediaId: d.mediaId,
+          url: assets[i].url,
+          label: d.label,
+        })),
+        dto.note,
+      ),
+      'Documents submitted. ATUPA will review them shortly.',
+    );
+  }
+
+  /** Super admin approves (Verified badge) or rejects (deactivates) a school. */
+  @ApiBearerAuth()
+  @Roles(UserRole.SUPER_ADMIN)
+  @HttpCode(200)
+  @Post(':schoolId/verification/decision')
+  async decideVerification(
+    @CurrentUser() actor: Actor,
+    @IdParam('schoolId') schoolId: string,
+    @Body() dto: VerificationDecisionDto,
+  ) {
+    const approve = dto.decision === 'approve';
+    return ok(
+      await this.schools.decideVerification(
+        actor,
+        schoolId,
+        approve,
+        dto.reason,
+      ),
+      approve ? 'School verified' : 'School rejected',
+    );
   }
 }

@@ -1,4 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Schema as MongooseSchema } from 'mongoose';
 
 @Schema({ timestamps: true, collection: 'schools' })
 export class SchoolRecord {
@@ -23,5 +24,7 @@ export class SchoolRecord {
     showLearnerNamesOnLeaderboards: boolean;
   };
   @Prop({ default: true }) isActive!: boolean;
+  @Prop({ type: MongooseSchema.Types.Mixed })
+  verification?: Record<string, unknown>;
 }
 export const SchoolSchema = SchemaFactory.createForClass(SchoolRecord);

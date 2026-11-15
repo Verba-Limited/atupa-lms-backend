@@ -70,6 +70,10 @@ export class ProgressQueryService {
     return (await this.stats.findByUsers(userIds)).map((s) => this.toView(s));
   }
 
+  async isEnrolled(userId: string, courseId: string): Promise<boolean> {
+    return !!(await this.enrollments.find(userId, courseId));
+  }
+
   listEnrollments(userId: string, status?: Enrollment['status']) {
     return this.enrollments.listByUser(userId, status);
   }

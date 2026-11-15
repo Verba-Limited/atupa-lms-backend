@@ -7,7 +7,13 @@ import {
   LearnerActivity,
   toLearnerActivity,
 } from '../domain/activity.entity';
-import { Course, CourseModule } from '../domain/course.entity';
+import {
+  Course,
+  CourseModule,
+  CourseOwnerType,
+  CourseVisibility,
+} from '../domain/course.entity';
+import { UsersService, VerificationStatus } from '../../identity';
 import { Language } from '../domain/language.entity';
 import { Lesson } from '../domain/lesson.entity';
 import { Quiz, QuizSummary, toQuizSummary } from '../domain/quiz.entity';
@@ -92,6 +98,7 @@ export class CatalogQueryService {
     @Inject(ACTIVITY_REPOSITORY)
     private readonly activities: ActivityRepository,
     @Inject(QUIZ_REPOSITORY) private readonly quizzes: QuizRepository,
+    private readonly users: UsersService,
   ) {}
 
   listLanguages(includeInactive = false): Promise<Language[]> {
@@ -102,14 +109,59 @@ export class CatalogQueryService {
     return this.languages.findByCode(code);
   }
 
+  /** Browse and search: only Public, published courses (M-25). */
   listPublishedCourses(
     filter: CourseFilter,
     page: PageRequest,
   ): Promise<Page<Course>> {
     return this.courses.list(
-      { ...filter, status: ContentStatus.PUBLISHED },
+      {
+        ...filter,
+        status: ContentStatus.PUBLISHED,
+        visibility: CourseVisibility.PUBLIC,
+      },
       page,
     );
+  }
+
+  /**
+   * Adds who made each course: "By ATUPA", or the teacher's name with a
+   * Verified badge, so learners can tell them apart.
+   */
+  async withAuthors<T extends Course>(courses: T[]) {
+    const ids = [
+      ...new Set(
+        courses
+          .filter((c) => c.ownerType !== CourseOwnerType.ATUPA)
+          .map((c) => c.createdByUserId)
+          .filter((id): id is string => !!id && /^[a-f0-9]{24}$/i.test(id)),
+      ),
+    ];
+    const authors = new Map(
+      (await this.users.findByIds(ids)).map((u) => [u.id, u]),
+    );
+    return courses.map((course) => {
+      const byAtupa = course.ownerType === CourseOwnerType.ATUPA;
+      const author = byAtupa
+        ? undefined
+        : authors.get(course.createdByUserId ?? '');
+      return {
+        ...course,
+        byAtupa,
+        author: byAtupa
+          ? { name: 'ATUPA', isVerified: true }
+          : author
+            ? {
+                id: author.id,
+                name: [author.firstName, author.lastName]
+                  .filter(Boolean)
+                  .join(' '),
+                isVerified:
+                  author.verificationStatus === VerificationStatus.VERIFIED,
+              }
+            : null,
+      };
+    });
   }
 
   async getPublishedCourse(courseId: string): Promise<Course> {
@@ -148,8 +200,9 @@ export class CatalogQueryService {
       (q) => !q.lessonId || lessonIds.has(q.lessonId),
     );
     const activities = await this.activities.listByLessons([...lessonIds]);
+    const [withAuthor] = await this.withAuthors([course]);
     return {
-      course,
+      course: withAuthor,
       modules: modules.map((m) => ({
         ...m,
         lessons: lessons

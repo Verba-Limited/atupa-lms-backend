@@ -9,7 +9,13 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { PLATFORM_CONTENT_ROLES } from '../../../../shared/domain/user-role';
+import type { Actor } from '../../../../shared/application/actor';
+import { ContentStatus } from '../../../../shared/domain/enums';
+import {
+  PLATFORM_CONTENT_ROLES,
+  UserRole,
+} from '../../../../shared/domain/user-role';
+import { CurrentUser } from '../../../../shared/presentation/decorators/current-user.decorator';
 import { Public } from '../../../../shared/presentation/decorators/public.decorator';
 import { Roles } from '../../../../shared/presentation/decorators/roles.decorator';
 import { pageOf } from '../../../../shared/presentation/dto/pagination-query.dto';
@@ -83,7 +89,24 @@ export class LibraryController {
   }
 }
 
-/** CMS endpoints for content creators and super admins. */
+/**
+ * Only super admins publish library content directly. Anything another staff
+ * member publishes waits in review until a super admin approves it (M-19).
+ */
+function reviewedStatus(actor: Actor, requested: ContentStatus): ContentStatus {
+  return requested === ContentStatus.PUBLISHED &&
+    actor.role !== UserRole.SUPER_ADMIN
+    ? ContentStatus.IN_REVIEW
+    : requested;
+}
+
+function savedMessage(message: string, status: ContentStatus): string {
+  return status === ContentStatus.IN_REVIEW
+    ? `${message} and sent for review`
+    : message;
+}
+
+/** CMS endpoints for content creators, support admins and super admins. */
 @ApiTags('Authoring (CMS)')
 @ApiBearerAuth()
 @Roles(...PLATFORM_CONTENT_ROLES)
@@ -100,19 +123,28 @@ export class LibraryAuthoringController {
   }
 
   @Post('vocabulary')
-  async createVocabulary(@Body() dto: VocabularyDto) {
-    return ok(await this.library.createVocabulary(dto), 'Vocabulary created');
+  async createVocabulary(
+    @CurrentUser() actor: Actor,
+    @Body() dto: VocabularyDto,
+  ) {
+    const entry = await this.library.createVocabulary({
+      ...dto,
+      status: reviewedStatus(actor, dto.status ?? ContentStatus.PUBLISHED),
+    });
+    return ok(entry, savedMessage('Vocabulary created', entry.status));
   }
 
   @Patch('vocabulary/:id')
   async updateVocabulary(
+    @CurrentUser() actor: Actor,
     @IdParam('id') id: string,
     @Body() dto: UpdateVocabularyDto,
   ) {
-    return ok(
-      await this.library.updateVocabulary(id, dto),
-      'Vocabulary updated',
-    );
+    const entry = await this.library.updateVocabulary(id, {
+      ...dto,
+      ...(dto.status ? { status: reviewedStatus(actor, dto.status) } : {}),
+    });
+    return ok(entry, savedMessage('Vocabulary updated', entry.status));
   }
 
   @Delete('vocabulary/:id')
@@ -130,19 +162,28 @@ export class LibraryAuthoringController {
   }
 
   @Post('cultural-topics')
-  async createTopic(@Body() dto: CulturalTopicDto) {
-    return ok(await this.library.createTopic(dto), 'Cultural topic created');
+  async createTopic(
+    @CurrentUser() actor: Actor,
+    @Body() dto: CulturalTopicDto,
+  ) {
+    const topic = await this.library.createTopic({
+      ...dto,
+      ...(dto.status ? { status: reviewedStatus(actor, dto.status) } : {}),
+    });
+    return ok(topic, savedMessage('Cultural topic created', topic.status));
   }
 
   @Patch('cultural-topics/:id')
   async updateTopic(
+    @CurrentUser() actor: Actor,
     @IdParam('id') id: string,
     @Body() dto: UpdateCulturalTopicDto,
   ) {
-    return ok(
-      await this.library.updateTopic(id, dto),
-      'Cultural topic updated',
-    );
+    const topic = await this.library.updateTopic(id, {
+      ...dto,
+      ...(dto.status ? { status: reviewedStatus(actor, dto.status) } : {}),
+    });
+    return ok(topic, savedMessage('Cultural topic updated', topic.status));
   }
 
   @Delete('cultural-topics/:id')
@@ -160,13 +201,25 @@ export class LibraryAuthoringController {
   }
 
   @Post('games')
-  async createGame(@Body() dto: GameDto) {
-    return ok(await this.library.createGame(dto), 'Game created');
+  async createGame(@CurrentUser() actor: Actor, @Body() dto: GameDto) {
+    const game = await this.library.createGame({
+      ...dto,
+      ...(dto.status ? { status: reviewedStatus(actor, dto.status) } : {}),
+    });
+    return ok(game, savedMessage('Game created', game.status));
   }
 
   @Patch('games/:id')
-  async updateGame(@IdParam('id') id: string, @Body() dto: UpdateGameDto) {
-    return ok(await this.library.updateGame(id, dto), 'Game updated');
+  async updateGame(
+    @CurrentUser() actor: Actor,
+    @IdParam('id') id: string,
+    @Body() dto: UpdateGameDto,
+  ) {
+    const game = await this.library.updateGame(id, {
+      ...dto,
+      ...(dto.status ? { status: reviewedStatus(actor, dto.status) } : {}),
+    });
+    return ok(game, savedMessage('Game updated', game.status));
   }
 
   @Delete('games/:id')

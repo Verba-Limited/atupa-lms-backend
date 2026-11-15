@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { IdentityModule } from '../identity';
+import { MediaModule } from '../media';
 import { SCHOOL_REPOSITORY } from './application/ports/school.repository.port';
 import { SchoolsService } from './application/schools.service';
 import { SchoolMongoRepository } from './infrastructure/persistence/school.mongo-repository';
@@ -13,6 +14,7 @@ import { SchoolsController } from './presentation/http/schools.controller';
 @Module({
   imports: [
     IdentityModule,
+    MediaModule,
     MongooseModule.forFeature([
       { name: SchoolRecord.name, schema: SchoolSchema },
     ]),

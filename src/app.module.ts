@@ -9,7 +9,9 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppConfig } from './config/app-config';
 import { validateEnv } from './config/env.validation';
 import { HealthController } from './health/health.controller';
+import { AdminModule } from './modules/admin';
 import { AssignmentsModule } from './modules/assignments';
+import { AuditModule } from './modules/audit';
 import { CatalogModule } from './modules/catalog';
 import { CertificatesModule } from './modules/certificates';
 import { ClassesModule } from './modules/classes';
@@ -22,6 +24,7 @@ import { NotificationsModule } from './modules/notifications';
 import { ParentsModule } from './modules/parents';
 import { ProgressModule } from './modules/progress';
 import { ReportsModule } from './modules/reports';
+import { SafetyModule } from './modules/safety';
 import { SchoolsModule } from './modules/schools';
 import { SearchModule } from './modules/search';
 import { SubscriptionsModule } from './modules/subscriptions';
@@ -77,6 +80,9 @@ import { RolesGuard } from './shared/presentation/guards/roles.guard';
     NotificationsModule,
     SearchModule,
     ReportsModule,
+    SafetyModule,
+    AuditModule,
+    AdminModule,
     SeedModule,
   ],
   controllers: [HealthController],

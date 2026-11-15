@@ -9,7 +9,14 @@ export type {
 export { CourseAuthoringService } from './application/course-authoring.service';
 export { LanguagesService } from './application/languages.service';
 export type { Course } from './domain/course.entity';
-export { AgeGroup, CourseType } from './domain/course.entity';
+export {
+  AgeGroup,
+  CourseOwnerType,
+  CourseType,
+  CourseVisibility,
+} from './domain/course.entity';
+export { ContentReviewService } from './application/content-review.service';
+export { isDiscoverable, requiresReview } from './domain/review.policy';
 export type { Lesson } from './domain/lesson.entity';
 export { LessonBlockType } from './domain/lesson.entity';
 export type { Activity } from './domain/activity.entity';
